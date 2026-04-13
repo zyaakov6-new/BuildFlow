@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Eye, EyeOff, ArrowLeft, Mail, Lock, User } from "lucide-react";
+import { Sparkles, Eye, EyeOff, ArrowLeft, Mail, Lock, User, Send, CheckCircle2, LogIn, UserPlus } from "lucide-react";
 
 type Mode = "signin" | "signup" | "magic";
 
@@ -67,7 +67,9 @@ export default function AuthForm() {
           {/* Magic link sent state */}
           {magicSent ? (
             <div className="text-center py-4">
-              <div className="text-5xl mb-4">📬</div>
+              <div className="w-14 h-14 rounded-2xl mx-auto mb-5 flex items-center justify-center" style={{ background: "oklch(0.88 0.08 140 / 0.2)" }}>
+                <Send className="w-6 h-6" style={{ color: "oklch(0.65 0.14 140)" }} />
+              </div>
               <h2 className="text-2xl font-black mb-3" style={{ color: "oklch(0.2 0.03 255)" }}>בדוק את האימייל שלך</h2>
               <p className="text-sm leading-relaxed mb-6" style={{ color: "oklch(0.5 0.03 255)" }}>
                 שלחנו לך קישור כניסה ל-<span className="font-bold" style={{ color: "oklch(0.45 0.14 140)" }}>{form.email}</span>.
@@ -102,9 +104,14 @@ export default function AuthForm() {
 
               {/* Headline */}
               <div className="text-right mb-7">
-                <h1 className="text-2xl font-black mb-1.5" style={{ color: "oklch(0.2 0.03 255)" }}>
-                  {mode === "signin" ? "ברוך הבא בחזרה 👋" : "מתחילים את המסע 🚀"}
-                </h1>
+                <div className="flex items-center justify-end gap-2 mb-1.5">
+                  {mode === "signin"
+                    ? <LogIn className="w-5 h-5" style={{ color: "oklch(0.65 0.14 140)" }} />
+                    : <UserPlus className="w-5 h-5" style={{ color: "oklch(0.65 0.14 140)" }} />}
+                  <h1 className="text-2xl font-black" style={{ color: "oklch(0.2 0.03 255)" }}>
+                    {mode === "signin" ? "ברוכים השבים" : "מתחילים את המסע"}
+                  </h1>
+                </div>
                 <p className="text-sm" style={{ color: "oklch(0.55 0.03 255)" }}>
                   {mode === "signin"
                     ? "כנס לחשבון שלך וחזור לרגעים המשפחתיים."
@@ -292,7 +299,9 @@ export default function AuthForm() {
                 <ArrowLeft className="w-3.5 h-3.5" />
               </button>
               <div className="text-right mb-7">
-                <div className="text-3xl mb-3">✉️</div>
+                <div className="w-12 h-12 rounded-2xl mb-4 flex items-center justify-center" style={{ background: "oklch(0.88 0.08 140 / 0.15)" }}>
+                  <Mail className="w-5 h-5" style={{ color: "oklch(0.65 0.14 140)" }} />
+                </div>
                 <h2 className="text-2xl font-black mb-2" style={{ color: "oklch(0.2 0.03 255)" }}>כניסה עם קישור מהיר</h2>
                 <p className="text-sm" style={{ color: "oklch(0.55 0.03 255)" }}>נשלח לך קישור כניסה ישירות לאימייל. ללא סיסמה.</p>
               </div>

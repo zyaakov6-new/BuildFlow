@@ -1,8 +1,9 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Calendar, Heart, Star } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
+import { Sparkles, Calendar, Heart, Star, CheckCircle2, Quote } from "lucide-react";
 
 export default function Hero() {
   return (
@@ -50,14 +51,14 @@ export default function Hero() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button
-              size="lg"
-              className="gradient-cta text-white border-0 hover:opacity-90 rounded-2xl h-14 px-8 text-base font-bold shadow-lg"
+            <Link
+              href="/auth"
+              className={buttonVariants({ size: "lg" }) + " gradient-cta text-white border-0 hover:opacity-90 rounded-2xl h-14 px-8 text-base font-bold shadow-lg"}
               style={{ boxShadow: "0 8px 24px oklch(0.65 0.14 140 / 0.35)" }}
             >
               <Sparkles className="w-4 h-4 ml-2" />
               מצא את הרגע המשפחתי הראשון שלי - בחינם
-            </Button>
+            </Link>
           </div>
 
           <p className="text-sm" style={{ color: "oklch(0.6 0.03 255)" }}>
@@ -216,17 +217,19 @@ export default function Hero() {
                 boxShadow: "0 8px 24px oklch(0 0 0 / 0.12)",
               }}
             >
-              <span className="text-base">✅</span> 4 רגעים השבוע!
+              <CheckCircle2 className="w-3.5 h-3.5" style={{ color: "oklch(0.65 0.14 140)" }} />
+              4 רגעים השבוע!
             </div>
             <div
-              className="absolute -bottom-4 -right-6 rounded-2xl px-3 py-2 shadow-lg text-xs font-bold"
+              className="absolute -bottom-4 -right-6 rounded-2xl px-3 py-2 shadow-lg text-xs font-bold flex items-center gap-1.5"
               style={{
                 background: "white",
                 color: "oklch(0.45 0.12 42)",
                 boxShadow: "0 8px 24px oklch(0 0 0 / 0.12)",
               }}
             >
-              😊 &quot;אמא, נעשה שוב BondFlow?&quot;
+              <Quote className="w-3 h-3 opacity-60" />
+              אמא, נעשה שוב BondFlow?
             </div>
           </div>
         </div>

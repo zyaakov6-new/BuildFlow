@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Sparkles, Menu, X } from "lucide-react";
 
 const navLinks = [
@@ -63,12 +64,9 @@ export default function Navbar() {
             >
               כניסה
             </Button>
-            <Button
-              size="sm"
-              className="gradient-cta text-white border-0 hover:opacity-90 rounded-xl px-5 text-sm font-semibold"
-            >
+            <Link href="/auth" className={buttonVariants({ size: "sm" }) + " gradient-cta text-white border-0 hover:opacity-90 rounded-xl px-5 text-sm font-semibold"}>
               התחל בחינם
-            </Button>
+            </Link>
           </div>
 
           {/* כפתור תפריט מובייל */}
@@ -96,9 +94,9 @@ export default function Navbar() {
                   {link.label}
                 </a>
               ))}
-              <Button className="gradient-cta text-white border-0 mt-2 rounded-xl font-semibold">
+              <Link href="/auth" className={buttonVariants() + " gradient-cta text-white border-0 mt-2 rounded-xl font-semibold w-full justify-center"}>
                 התחל בחינם - ללא כרטיס אשראי
-              </Button>
+              </Link>
             </div>
           </div>
         )}

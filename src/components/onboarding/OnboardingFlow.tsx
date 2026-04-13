@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Plus, Trash2, ChevronLeft, Check, Calendar, Clock } from "lucide-react";
+import { Sparkles, Plus, Trash2, ChevronLeft, Check, Calendar, Clock, User, Users, CalendarDays, Timer, PartyPopper, Blocks, Lock } from "lucide-react";
 
 // ---- Types ----
 interface Child {
@@ -27,12 +27,12 @@ const INTEREST_OPTIONS = [
 ];
 
 const TIME_SLOTS = [
-  { id: "morning", label: "בוקר (7:00-9:00)", icon: "🌅" },
-  { id: "afternoon", label: "צהריים (12:00-14:00)", icon: "☀️" },
-  { id: "after_school", label: "אחה\"צ (15:30-18:00)", icon: "🎒" },
-  { id: "evening", label: "ערב (18:00-20:00)", icon: "🌙" },
-  { id: "weekend_morning", label: "סוף שבוע בוקר", icon: "🏡" },
-  { id: "weekend_afternoon", label: "סוף שבוע צהריים", icon: "🌳" },
+  { id: "morning", label: "בוקר (7:00-9:00)", sub: "לפני עבודה" },
+  { id: "afternoon", label: "צהריים (12:00-14:00)", sub: "הפסקת צהריים" },
+  { id: "after_school", label: "אחה\"צ (15:30-18:00)", sub: "אחרי בית ספר" },
+  { id: "evening", label: "ערב (18:00-20:00)", sub: "אחרי ארוחת ערב" },
+  { id: "weekend_morning", label: "סוף שבוע בוקר", sub: "שישי-שבת" },
+  { id: "weekend_afternoon", label: "סוף שבוע צהריים", sub: "שישי-שבת" },
 ];
 
 const TOTAL_STEPS = 5;
@@ -71,7 +71,9 @@ function Step1({ data, setData }: { data: FormData; setData: (d: FormData) => vo
   return (
     <div className="flex flex-col gap-6">
       <div className="text-right">
-        <div className="text-5xl mb-4">👋</div>
+        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: "oklch(0.88 0.08 140 / 0.18)" }}>
+          <User className="w-7 h-7" style={{ color: "oklch(0.65 0.14 140)" }} />
+        </div>
         <h2 className="text-3xl font-black mb-2" style={{ color: "oklch(0.2 0.03 255)" }}>
           שלום! מי אתה?
         </h2>
@@ -128,7 +130,9 @@ function Step2({ data, setData }: { data: FormData; setData: (d: FormData) => vo
   return (
     <div className="flex flex-col gap-6">
       <div className="text-right">
-        <div className="text-5xl mb-4">👨‍👩‍👧‍👦</div>
+        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: "oklch(0.92 0.06 60 / 0.2)" }}>
+          <Users className="w-7 h-7" style={{ color: "oklch(0.72 0.18 42)" }} />
+        </div>
         <h2 className="text-3xl font-black mb-2" style={{ color: "oklch(0.2 0.03 255)" }}>
           ספר לנו על הילדים שלך
         </h2>
@@ -254,7 +258,9 @@ function Step3({ data, setData }: { data: FormData; setData: (d: FormData) => vo
   return (
     <div className="flex flex-col gap-6">
       <div className="text-right">
-        <div className="text-5xl mb-4">📅</div>
+        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: "oklch(0.90 0.06 255 / 0.15)" }}>
+          <CalendarDays className="w-7 h-7" style={{ color: "oklch(0.55 0.18 255)" }} />
+        </div>
         <h2 className="text-3xl font-black mb-2" style={{ color: "oklch(0.2 0.03 255)" }}>
           חבר את היומן שלך
         </h2>
@@ -305,7 +311,7 @@ function Step3({ data, setData }: { data: FormData; setData: (d: FormData) => vo
         className="rounded-2xl p-4 flex items-start gap-3"
         style={{ background: "oklch(0.88 0.08 140 / 0.12)", border: "1px solid oklch(0.65 0.14 140 / 0.2)" }}
       >
-        <span className="text-lg flex-shrink-0">🔒</span>
+        <Lock className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "oklch(0.65 0.14 140)" }} />
         <p className="text-xs leading-relaxed text-right" style={{ color: "oklch(0.5 0.08 140)" }}>
           אנחנו לא קוראים את תוכן האירועים שלך - רק בודקים מתי יש לך זמן פנוי. הנתונים לא נמכרים לאף אחד.
         </p>
@@ -326,7 +332,9 @@ function Step4({ data, setData }: { data: FormData; setData: (d: FormData) => vo
   return (
     <div className="flex flex-col gap-6">
       <div className="text-right">
-        <div className="text-5xl mb-4">⏰</div>
+        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: "oklch(0.92 0.06 60 / 0.2)" }}>
+          <Timer className="w-7 h-7" style={{ color: "oklch(0.72 0.18 42)" }} />
+        </div>
         <h2 className="text-3xl font-black mb-2" style={{ color: "oklch(0.2 0.03 255)" }}>
           מתי אתה בדרך כלל פנוי?
         </h2>
@@ -342,16 +350,22 @@ function Step4({ data, setData }: { data: FormData; setData: (d: FormData) => vo
             <button
               key={slot.id}
               onClick={() => toggle(slot.id)}
-              className="rounded-2xl p-4 text-right transition-all active:scale-95 border-2"
+              className="rounded-2xl p-4 text-right transition-all active:scale-95 border-2 flex flex-col gap-1"
               style={{
                 borderColor: selected ? "oklch(0.65 0.14 140)" : "oklch(0.9 0.02 85)",
                 background: selected ? "oklch(0.88 0.08 140 / 0.12)" : "white",
               }}
             >
-              <div className="text-2xl mb-2">{slot.icon}</div>
-              <p className="text-xs font-bold leading-snug" style={{ color: selected ? "oklch(0.45 0.14 140)" : "oklch(0.4 0.03 255)" }}>
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center mb-1"
+                style={{ background: selected ? "oklch(0.65 0.14 140 / 0.2)" : "oklch(0.95 0.02 85)" }}
+              >
+                <Clock className="w-3.5 h-3.5" style={{ color: selected ? "oklch(0.55 0.14 140)" : "oklch(0.6 0.03 255)" }} />
+              </div>
+              <p className="text-xs font-black leading-snug" style={{ color: selected ? "oklch(0.45 0.14 140)" : "oklch(0.35 0.03 255)" }}>
                 {slot.label}
               </p>
+              <p className="text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>{slot.sub}</p>
             </button>
           );
         })}
@@ -373,35 +387,40 @@ function Step5({ data }: { data: FormData }) {
 
   const suggestions = [
     {
-      emoji: "🚂",
+      IconComp: Blocks,
       title: `בניית לגו עם ${childName}`,
       time: "שלישי - 17:30 - 18:00",
       prep: "אפס הכנה",
       color: "oklch(0.88 0.08 140 / 0.2)",
       accent: "oklch(0.55 0.14 140)",
+      iconColor: "oklch(0.55 0.14 140)",
     },
     {
-      emoji: "🎨",
+      IconComp: Sparkles,
       title: "ציור חופשי ביחד",
       time: "חמישי - 18:30 - 19:00",
       prep: "רק ניירות וצבעים",
       color: "oklch(0.92 0.06 60 / 0.25)",
       accent: "oklch(0.55 0.15 42)",
+      iconColor: "oklch(0.55 0.15 42)",
     },
     {
-      emoji: "📖",
+      IconComp: Clock,
       title: "קריאת סיפור לפני שינה",
       time: "יום ראשון - 20:00",
       prep: "ספר אחד - 15 דקות",
       color: "oklch(0.90 0.06 255 / 0.15)",
       accent: "oklch(0.5 0.18 255)",
+      iconColor: "oklch(0.5 0.18 255)",
     },
   ];
 
   return (
     <div className="flex flex-col gap-6">
       <div className="text-center">
-        <div className="text-6xl mb-4">🎉</div>
+        <div className="w-16 h-16 rounded-2xl gradient-cta flex items-center justify-center mx-auto mb-4 shadow-lg" style={{ boxShadow: "0 8px 24px oklch(0.65 0.14 140 / 0.35)" }}>
+          <PartyPopper className="w-8 h-8 text-white" />
+        </div>
         <h2 className="text-3xl font-black mb-2" style={{ color: "oklch(0.2 0.03 255)" }}>
           {firstName}, BondFlow מוכן!
         </h2>
@@ -411,14 +430,18 @@ function Step5({ data }: { data: FormData }) {
       </div>
 
       <div className="flex flex-col gap-3">
-        {suggestions.map((s, i) => (
+        {suggestions.map((s, i) => {
+          const IconComp = s.IconComp;
+          return (
           <div
             key={i}
             className="rounded-2xl p-4 border cursor-pointer transition-all active:scale-[0.98] hover:shadow-md"
             style={{ background: s.color, borderColor: `${s.accent}30` }}
           >
             <div className="flex items-start gap-3">
-              <span className="text-3xl">{s.emoji}</span>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${s.accent}20` }}>
+                <IconComp className="w-5 h-5" style={{ color: s.iconColor }} />
+              </div>
               <div className="flex-1 text-right">
                 <p className="font-black text-base mb-1" style={{ color: "oklch(0.2 0.03 255)" }}>{s.title}</p>
                 <div className="flex items-center justify-end gap-3">
@@ -433,7 +456,8 @@ function Step5({ data }: { data: FormData }) {
               חסום את הזמן הזה
             </button>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

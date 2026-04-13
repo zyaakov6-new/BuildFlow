@@ -1,4 +1,5 @@
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 import { Sparkles, Heart } from "lucide-react";
 
 export default function FinalCTA() {
@@ -45,14 +46,14 @@ export default function FinalCTA() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Button
-                size="lg"
-                className="gradient-cta text-white border-0 hover:opacity-90 rounded-2xl h-14 px-10 text-base font-black shadow-lg w-full sm:w-auto"
+              <Link
+                href="/auth"
+                className={buttonVariants({ size: "lg" }) + " gradient-cta text-white border-0 hover:opacity-90 rounded-2xl h-14 px-10 text-base font-black shadow-lg w-full sm:w-auto"}
                 style={{ boxShadow: "0 8px 24px oklch(0.65 0.14 140 / 0.35)" }}
               >
                 <Sparkles className="w-4 h-4 ml-2" />
                 מצא את הרגע המשפחתי הראשון שלי - בחינם
-              </Button>
+              </Link>
             </div>
 
             <p className="text-xs mt-4" style={{ color: "oklch(0.6 0.03 255)" }}>
