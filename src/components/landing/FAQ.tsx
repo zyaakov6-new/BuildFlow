@@ -9,36 +9,36 @@ import {
 
 const faqs = [
   {
-    q: "Will this just add more things to my to-do list?",
-    a: "Absolutely not. BondFlow removes thinking, it doesn't add it. You connect your calendar once, answer a few questions about your kids, and we handle the suggestions. You just tap 'yes' to the ones that feel right. That's it.",
+    q: "האם זה לא יוסיף לי עוד דברים לרשימת המטלות?",
+    a: "ממש לא. BondFlow מסירה מחשבות, לא מוסיפה אותן. מחבר את היומן פעם אחת, עונה על כמה שאלות על הילדים - ואנחנו מטפלים בהצעות. אתה רק לוחץ 'כן' על מה שמרגיש נכון. זהו.",
   },
   {
-    q: "What if my schedule is completely unpredictable?",
-    a: "That's exactly who we built this for. BondFlow re-scans your calendar every week and finds pockets based on what's actually there — not some idealized version of your life. Even 15 minutes counts. We'll find them.",
+    q: "מה אם הלוח שלי לגמרי בלתי צפוי?",
+    a: "בדיוק בשביל זה בנינו את זה. BondFlow סורקת מחדש את היומן שלך כל שבוע ומוצאת חלונות לפי מה שיש שם בפועל - לא גרסה אידיאלית של החיים שלך. גם 15 דקות נחשבות. נמצא אותן.",
   },
   {
-    q: "My kids are different ages with totally different interests. Does it work?",
-    a: "Yes. Each child gets their own profile. Suggestions are always age-appropriate and interest-matched. The app also suggests group activities when it makes sense for the whole family.",
+    q: "יש לי ילדים בגילאים שונים עם תחביבים שונים לגמרי - זה עובד?",
+    a: "כן. לכל ילד יש פרופיל משלו. ההצעות תמיד מותאמות לגיל ולתחביבים. האפליקציה גם מציעה פעילויות קבוצתיות כשזה הגיוני לכל המשפחה.",
   },
   {
-    q: "Is my calendar data private?",
-    a: "We take privacy seriously. Your calendar data is used only to find your time slots — never sold, never shared. We're fully GDPR-compliant and working toward Israeli Privacy Protection Law compliance. Full details in our privacy policy.",
+    q: "האם נתוני היומן שלי פרטיים?",
+    a: "לוקחים פרטיות ברצינות. נתוני היומן שלך משמשים רק למציאת חלונות זמן - לא נמכרים, לא משותפים. תואם GDPR במלואו ועובדים לקראת עמידה בחוק הגנת הפרטיות הישראלי.",
   },
   {
-    q: "Is it really in Hebrew?",
-    a: "Full Hebrew interface, Hebrew notifications, Hebrew holiday calendar, and Hebrew support — yes. BondFlow is built for Israeli parents, not just translated for them. Right-to-left layout, Hebrew fonts, the whole experience.",
+    q: "האפליקציה באמת בעברית?",
+    a: "ממשק עברית מלא, התראות בעברית, לוח חגים עברי, ותמיכה בעברית - כן. BondFlow נבנתה להורים ישראלים, לא רק תורגמה עבורם. פריסה ימין-שמאל, פונטים עבריים - כל החוויה.",
   },
   {
-    q: "What if I try it and nothing changes?",
-    a: "Cancel any time — no friction, no guilt. But here's what we've seen: the parents who feel most skeptical are usually the ones who feel the biggest shift after their first completed activity. Start free. Try one thing. See how it feels.",
+    q: "מה אם ינסה ולא ישתנה כלום?",
+    a: "ביטול בכל זמן - בלי חיכוך, בלי אשמה. אבל זה מה שראינו: ההורים שהכי סקפטיים הם בדרך כלל אלה שמרגישים את השינוי הגדול ביותר אחרי הפעילות הראשונה. מתחיל בחינם. מנסה דבר אחד. רואה איך זה מרגיש.",
   },
   {
-    q: "My partner won't engage with another family app.",
-    a: "The free plan works perfectly for one parent. And once your kids start asking for 'BondFlow time,' your partner will want in. We've seen it happen dozens of times.",
+    q: "הפרטנר שלי לא ייכנס לעוד אפליקציה משפחתית.",
+    a: "התוכנית החינמית עובדת מצוין להורה אחד. וברגע שהילדים שלך מתחילים לבקש 'זמן BondFlow' - הפרטנר ירצה להיכנס. ראינו את זה קורה שוב ושוב.",
   },
   {
-    q: "Does it work with Israeli school holidays and chagim?",
-    a: "Yes — that was one of our first priorities. BondFlow knows the Israeli school calendar, all the Jewish holidays, school recesses, and even Chol HaMoed. It factors all of this in when suggesting activities and finding time windows.",
+    q: "עובד עם חגי ישראל וחופשות בית ספר?",
+    a: "כן - זה היה אחד הדברים הראשונים שבנינו. BondFlow מכירה את לוח השנה הישראלי, את כל החגים, חופשות בית ספר, וחול המועד. הכל נלקח בחשבון בהצעות הפעילויות.",
   },
 ];
 
@@ -48,17 +48,17 @@ export default function FAQ() {
       <div className="max-w-3xl mx-auto px-4 sm:px-6">
         <div className="text-center mb-14">
           <p
-            className="text-sm font-semibold uppercase tracking-wider mb-3"
+            className="text-sm font-bold uppercase tracking-wider mb-3"
             style={{ color: "oklch(0.65 0.14 140)" }}
           >
-            FAQ
+            שאלות נפוצות
           </p>
-          <h2 className="text-3xl sm:text-4xl font-bold text-[oklch(0.2_0.03_255)] mb-4">
-            Questions?{" "}
-            <span className="text-gradient">We&apos;ve Heard Them All.</span>
+          <h2 className="text-3xl sm:text-4xl font-black mb-4" style={{ color: "oklch(0.2 0.03 255)" }}>
+            שאלות?{" "}
+            <span className="text-gradient">שמענו הכל.</span>
           </h2>
-          <p className="text-[oklch(0.5_0.03_255)]">
-            Real answers for real parents with real doubts.
+          <p style={{ color: "oklch(0.5 0.03 255)" }}>
+            תשובות אמיתיות להורים אמיתיים עם ספקות אמיתיות.
           </p>
         </div>
 
@@ -67,16 +67,13 @@ export default function FAQ() {
             <AccordionItem
               key={i}
               value={`item-${i}`}
-              className="rounded-2xl border px-5 data-[state=open]:shadow-sm"
-              style={{
-                borderColor: "oklch(0.9 0.02 85)",
-                background: "white",
-              }}
+              className="rounded-2xl border px-5"
+              style={{ borderColor: "oklch(0.9 0.02 85)", background: "white" }}
             >
-              <AccordionTrigger className="text-left font-semibold text-[oklch(0.25_0.03_255)] text-sm py-5 hover:no-underline">
+              <AccordionTrigger className="text-right font-bold text-sm py-5 hover:no-underline" style={{ color: "oklch(0.25 0.03 255)" }}>
                 {faq.q}
               </AccordionTrigger>
-              <AccordionContent className="text-sm text-[oklch(0.5_0.03_255)] leading-relaxed pb-5">
+              <AccordionContent className="text-sm leading-relaxed pb-5" style={{ color: "oklch(0.5 0.03 255)" }}>
                 {faq.a}
               </AccordionContent>
             </AccordionItem>

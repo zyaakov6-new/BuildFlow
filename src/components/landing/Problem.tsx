@@ -1,67 +1,46 @@
-import { Frown } from "lucide-react";
-
 const painPoints = [
-  {
-    emoji: "😓",
-    text: "You said \"in a minute\" — and the minute never came.",
-  },
-  {
-    emoji: "📱",
-    text: "You scrolled Instagram watching other families do craft projects and felt worse.",
-  },
-  {
-    emoji: "🚗",
-    text: "An hour in traffic. Two hours of meetings. Dinner from the freezer. Another day gone.",
-  },
-  {
-    emoji: "📆",
-    text: "You meant to plan something for the weekend. Sunday arrived and nothing happened.",
-  },
-  {
-    emoji: "😴",
-    text: "You're exhausted by 8pm. The kids are already in bed. The guilt is fully awake.",
-  },
-  {
-    emoji: "🎉",
-    text: "Chol HaMoed, school holidays, Shabbat — the days when you should connect feel the most chaotic.",
-  },
+  { emoji: "😓", text: "אמרת לו \"רגע\" - והרגע לא הגיע." },
+  { emoji: "📱", text: "גלשת באינסטגרם בשעה 23:00 וראית משפחות אחרות עושות פעילויות יצירה. הרגשת עוד יותר גרוע." },
+  { emoji: "🚗", text: "שעה בפקקים. שתי שעות ישיבות. ארוחת ערב מהמקפיא. עוד יום שעבר." },
+  { emoji: "📆", text: "התכוונת לתכנן משהו לסוף השבוע. יום ראשון הגיע ולא קרה כלום." },
+  { emoji: "😴", text: "עייף מדי בשמונה בערב. הילדים כבר במיטה. האשמה ערה לגמרי." },
+  { emoji: "🎉", text: "חנוכה, פסח, חגים - הימים שאמורים להיות מחוברים הכי כאוטיים מתמיד." },
 ];
 
 export default function Problem() {
   return (
     <section className="py-24 bg-white">
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
-        {/* Section label */}
+        {/* תווית סקשן */}
         <div className="flex items-center gap-2 mb-6 justify-center">
-          <Frown className="w-5 h-5" style={{ color: "oklch(0.72 0.18 42)" }} />
+          <span className="text-2xl">😔</span>
           <span
-            className="text-sm font-semibold uppercase tracking-wider"
+            className="text-sm font-bold uppercase tracking-wider"
             style={{ color: "oklch(0.72 0.18 42)" }}
           >
-            You&apos;re not alone
+            אתה לא לבד
           </span>
         </div>
 
-        <h2 className="text-3xl sm:text-4xl font-bold text-center text-[oklch(0.2_0.03_255)] mb-4 leading-tight">
-          You Know That Feeling.
+        <h2 className="text-3xl sm:text-4xl font-black text-center mb-4 leading-tight" style={{ color: "oklch(0.2 0.03 255)" }}>
+          אתה מכיר את התחושה הזאת.
           <br />
-          <span className="text-gradient">The One at 10pm.</span>
+          <span className="text-gradient">זאת שבאה בשעה עשר בלילה.</span>
         </h2>
 
-        <p className="text-center text-lg text-[oklch(0.5_0.03_255)] mb-4 max-w-2xl mx-auto leading-relaxed">
-          You finally put the kids to bed. The house is quiet. And instead of
-          feeling relieved — you feel it. That low, dull ache.
+        <p className="text-center text-lg mb-4 max-w-2xl mx-auto leading-relaxed" style={{ color: "oklch(0.5 0.03 255)" }}>
+          סוף סוף שכבת את הילדים. הבית שקט. ובמקום להרגיש הקלה - אתה מרגיש אותה.
+          את הכבדות הזו, השקטה.
         </p>
 
         <p
-          className="text-center text-xl font-medium italic mb-16 max-w-2xl mx-auto"
+          className="text-center text-xl font-bold italic mb-16 max-w-2xl mx-auto"
           style={{ color: "oklch(0.45 0.10 140)" }}
         >
-          &quot;Did I even really talk to them today? Or did I just... logistics them
-          through another day?&quot;
+          &quot;האם בכלל דיברתי איתם היום? או שסתם עשיתי להם לוגיסטיקה דרך עוד יום?&quot;
         </p>
 
-        {/* Pain points grid */}
+        {/* רשת כאבים */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-16">
           {painPoints.map((point, i) => (
             <div
@@ -70,35 +49,34 @@ export default function Problem() {
               style={{ background: "oklch(0.97 0.01 85)" }}
             >
               <span className="text-2xl flex-shrink-0">{point.emoji}</span>
-              <p className="text-sm text-[oklch(0.45_0.03_255)] leading-relaxed">
+              <p className="text-sm leading-relaxed" style={{ color: "oklch(0.45 0.03 255)" }}>
                 {point.text}
               </p>
             </div>
           ))}
         </div>
 
-        {/* Reframe */}
+        {/* מסגור מחדש */}
         <div
           className="rounded-3xl p-8 sm:p-10 text-center relative overflow-hidden"
           style={{ background: "oklch(0.95 0.03 85)" }}
         >
           <div
-            className="absolute top-0 right-0 w-40 h-40 rounded-full opacity-30 blur-2xl pointer-events-none"
+            className="absolute top-0 left-0 w-40 h-40 rounded-full opacity-30 blur-2xl pointer-events-none"
             style={{ background: "oklch(0.65 0.14 140)" }}
           />
-          <p className="text-sm font-semibold uppercase tracking-wider text-[oklch(0.65_0.14_140)] mb-3">
-            Here&apos;s the truth
+          <p className="text-sm font-bold uppercase tracking-wider mb-3" style={{ color: "oklch(0.65 0.14 140)" }}>
+            האמת
           </p>
-          <h3 className="text-2xl sm:text-3xl font-bold text-[oklch(0.2_0.03_255)] mb-4">
-            You don&apos;t need <em>more</em> time.
+          <h3 className="text-2xl sm:text-3xl font-black mb-4" style={{ color: "oklch(0.2 0.03 255)" }}>
+            אתה לא צריך <em>יותר</em> זמן.
             <br />
-            You need to use the time you have —{" "}
-            <span className="text-gradient">better.</span>
+            אתה צריך להשתמש בזמן שיש לך -{" "}
+            <span className="text-gradient">בצורה טובה יותר.</span>
           </h3>
-          <p className="text-[oklch(0.5_0.03_255)] max-w-xl mx-auto leading-relaxed">
-            But who has the mental bandwidth to plan that? After work, traffic,
-            dinner, homework, and 47 WhatsApp messages? That&apos;s exactly why we
-            built BondFlow.
+          <p className="max-w-xl mx-auto leading-relaxed" style={{ color: "oklch(0.5 0.03 255)" }}>
+            אבל למי יש כוח לתכנן את זה? אחרי עבודה, פקקים, ארוחת ערב, שיעורי בית
+            ו-47 הודעות ווטסאפ? בדיוק בשביל זה בנינו את BondFlow.
           </p>
         </div>
       </div>

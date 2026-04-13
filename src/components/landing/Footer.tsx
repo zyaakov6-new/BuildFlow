@@ -1,6 +1,11 @@
-"use client";
-
 import { Sparkles } from "lucide-react";
+
+const navLinks = [
+  { label: "איך זה עובד", href: "#how-it-works" },
+  { label: "יתרונות", href: "#benefits" },
+  { label: "מחירים", href: "#pricing" },
+  { label: "שאלות נפוצות", href: "#faq" },
+];
 
 export default function Footer() {
   return (
@@ -13,30 +18,24 @@ export default function Footer() {
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
-          {/* Logo */}
+          {/* לוגו */}
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl gradient-cta flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold text-xl text-white">BondFlow</span>
+            <span className="font-black text-xl text-white">BondFlow</span>
           </div>
 
-          {/* Links */}
+          {/* ניווט */}
           <nav className="flex flex-wrap justify-center gap-6">
-            {["How It Works", "Benefits", "Pricing", "FAQ"].map((item) => (
+            {navLinks.map((link) => (
               <a
-                key={item}
-                href={`#${item.toLowerCase().replace(" ", "-")}`}
+                key={link.href}
+                href={link.href}
                 className="text-sm transition-colors"
                 style={{ color: "oklch(0.65 0.05 255)" }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.color = "oklch(0.85 0.05 255)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.color = "oklch(0.65 0.05 255)")
-                }
               >
-                {item}
+                {link.label}
               </a>
             ))}
           </nav>
@@ -47,22 +46,15 @@ export default function Footer() {
           style={{ borderColor: "oklch(0.38 0.05 255)" }}
         >
           <p className="text-xs" style={{ color: "oklch(0.55 0.05 255)" }}>
-            © 2025 BondFlow. All rights reserved. · Made in 🇮🇱 for Israeli
-            families.
+            כל הזכויות שמורות 2025 BondFlow - נבנה בישראל 🇮🇱 למשפחות ישראליות.
           </p>
           <div className="flex gap-5">
-            {["Privacy Policy", "Terms of Service", "Contact"].map((item) => (
+            {["מדיניות פרטיות", "תנאי שימוש", "צור קשר"].map((item) => (
               <a
                 key={item}
                 href="#"
                 className="text-xs transition-colors"
                 style={{ color: "oklch(0.55 0.05 255)" }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.color = "oklch(0.75 0.05 255)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.color = "oklch(0.55 0.05 255)")
-                }
               >
                 {item}
               </a>

@@ -1,26 +1,22 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Heebo } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const heebo = Heebo({
+  variable: "--font-heebo",
+  subsets: ["hebrew", "latin"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
 });
 
 export const metadata: Metadata = {
-  title: "BondFlow — Find Real Family Moments in Your Impossible Schedule",
+  title: "BondFlow - מצא רגעים אמיתיים עם הילדים שלך",
   description:
-    "AI-powered family time scheduler for busy Israeli parents. BondFlow finds hidden pockets in your calendar and suggests zero-prep activities your kids actually love.",
-  keywords: ["family time", "parenting app", "Israel", "family scheduler", "quality time", "busy parents"],
+    "אפליקציית לוח הזמנים המשפחתי עם AI לעזרת הורים עסוקים. BondFlow מוצאת פרצות זמן אמיתיות ביומן שלך ומציעה פעילויות אפס-הכנה שהילדים שלך יאהבו.",
+  keywords: ["זמן משפחתי", "אפליקציה להורים", "ישראל", "זמן איכות", "הורות"],
   openGraph: {
-    title: "BondFlow — Your Kids Don't Need More Money. They Need More You.",
+    title: "BondFlow - הילדים שלך לא צריכים עוד כסף. הם צריכים יותר אותך.",
     description:
-      "Turn 20 chaotic minutes into memories that last. BondFlow is the AI family planner built for Israeli working parents.",
+      "הפוך 20 דקות כאוטיות לזיכרונות שנשארים. BondFlow היא מתזמנת המשפחה עם AI שנבנתה להורים ישראלים עסוקים.",
     type: "website",
   },
 };
@@ -32,10 +28,13 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      lang="he"
+      dir="rtl"
+      className={`${heebo.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col font-[var(--font-heebo)]">
+        {children}
+      </body>
     </html>
   );
 }
