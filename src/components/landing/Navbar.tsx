@@ -56,14 +56,13 @@ export default function Navbar() {
 
           {/* כפתורי פעולה */}
           <div className="hidden md:flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-sm"
+            <Link
+              href="/auth"
+              className={buttonVariants({ variant: "ghost", size: "sm" }) + " text-sm"}
               style={{ color: "oklch(0.5 0.03 255)" }}
             >
               כניסה
-            </Button>
+            </Link>
             <Link href="/auth" className={buttonVariants({ size: "sm" }) + " gradient-cta text-white border-0 hover:opacity-90 rounded-xl px-5 text-sm font-semibold"}>
               התחל בחינם
             </Link>
@@ -94,7 +93,10 @@ export default function Navbar() {
                   {link.label}
                 </a>
               ))}
-              <Link href="/auth" className={buttonVariants() + " gradient-cta text-white border-0 mt-2 rounded-xl font-semibold w-full justify-center"}>
+              <Link href="/auth" className="text-sm py-1 font-medium" style={{ color: "oklch(0.55 0.03 255)" }} onClick={() => setMenuOpen(false)}>
+                כניסה לחשבון קיים
+              </Link>
+              <Link href="/auth" className={buttonVariants() + " gradient-cta text-white border-0 mt-1 rounded-xl font-semibold w-full justify-center"}>
                 התחל בחינם - ללא כרטיס אשראי
               </Link>
             </div>

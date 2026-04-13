@@ -57,7 +57,7 @@ export default function Problem() {
         </h2>
 
         <p className="text-center text-lg mb-4 max-w-2xl mx-auto leading-relaxed" style={{ color: "oklch(0.5 0.03 255)" }}>
-          סוף סוף שכבת את הילדים. הבית שקט. ובמקום להרגיש הקלה - אתה מרגיש אותה.
+          סוף סוף הרדמת את הילדים. הבית שקט. ובמקום להרגיש הקלה - אתה מרגיש אותה.
           את הכבדות הזו, השקטה.
         </p>
 

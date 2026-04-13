@@ -5,7 +5,7 @@ import {
   Home,
   Calendar,
   Lightbulb,
-  User,
+  Settings,
   Bell,
   ChevronLeft,
   Clock,
@@ -17,9 +17,11 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+import ProfileSidebar from "./ProfileSidebar";
+import SettingsScreen from "./SettingsScreen";
 
 // ---- Types ----
-type Tab = "home" | "calendar" | "suggestions" | "profile";
+type Tab = "home" | "calendar" | "suggestions" | "settings";
 
 interface Suggestion {
   id: number;
@@ -267,7 +269,7 @@ function UpcomingMoment({
 // ---- Bottom Nav ----
 function BottomNav({ active, setActive }: { active: Tab; setActive: (t: Tab) => void }) {
   const tabs: { id: Tab; label: string; Icon: React.ElementType }[] = [
-    { id: "profile", label: "פרופיל", Icon: User },
+    { id: "settings", label: "הגדרות", Icon: Settings },
     { id: "suggestions", label: "הצעות", Icon: Lightbulb },
     { id: "calendar", label: "יומן", Icon: Calendar },
     { id: "home", label: "בית", Icon: Home },
@@ -365,6 +367,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>("home");
   const [suggestions, setSuggestions] = useState<Suggestion[]>(INITIAL_SUGGESTIONS);
   const [blockedIds, setBlockedIds] = useState<number[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleBlock = (id: number) => {
     setBlockedIds((prev) => [...prev, id]);
@@ -390,6 +393,9 @@ export default function Dashboard() {
         className="relative w-full max-w-[390px] min-h-screen flex flex-col"
         style={{ background: "oklch(0.97 0.01 85)" }}
       >
+        {/* Profile sidebar */}
+        <ProfileSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
         {/* Scroll area */}
         <div className="flex-1 overflow-y-auto pb-28">
           {/* ---- Top bar ---- */}
@@ -422,16 +428,21 @@ export default function Dashboard() {
               </p>
             </div>
 
-            {/* Avatar */}
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black text-white flex-shrink-0"
+            {/* Avatar - opens profile sidebar */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black text-white flex-shrink-0 transition-opacity hover:opacity-85 active:scale-95"
               style={{ background: "oklch(0.65 0.14 140)" }}
             >
               מ
-            </div>
+            </button>
           </div>
 
-          <div className="px-4 pt-4 flex flex-col gap-4">
+          {/* ---- Settings tab ---- */}
+          {activeTab === "settings" && <SettingsScreen />}
+
+          {/* ---- Home tab content ---- */}
+          {activeTab === "home" && <div className="px-4 pt-4 flex flex-col gap-4">
             {/* ---- Score Ring ---- */}
             <ScoreRing score={72} delta={8} />
 
@@ -548,7 +559,7 @@ export default function Dashboard() {
                 </div>
               </div>
             )}
-          </div>
+          </div>}
         </div>
 
         {/* ---- Bottom Nav ---- */}
