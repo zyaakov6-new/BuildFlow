@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Sparkles, CheckCircle2, Clock, Calendar, RefreshCw, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 
 const WEEK_DAYS = ["ר", "ב", "ג", "ד", "ה", "ו", "ש"];
 
@@ -46,15 +47,27 @@ export default function CalendarScreen({ onNavigateToSuggestions }: { onNavigate
   const handleComplete = async (ev: UnifiedEvent) => {
     if (!ev.dbId) return;
     setEvents((prev) => prev.map((e) => e.id === ev.id ? { ...e, completed: true } : e));
-    const supabase = createClient();
-    await supabase.from("saved_moments").update({ completed: true }).eq("id", ev.dbId);
+    try {
+      const supabase = createClient();
+      await supabase.from("saved_moments").update({ completed: true }).eq("id", ev.dbId);
+      toast.success("סומן כבוצע ✓");
+    } catch (e) {
+      console.error("Failed to complete moment:", e);
+      toast.error("שגיאה, נסה שוב");
+    }
   };
 
   const handleDelete = async (ev: UnifiedEvent) => {
     if (!ev.dbId) return;
     setEvents((prev) => prev.filter((e) => e.id !== ev.id));
-    const supabase = createClient();
-    await supabase.from("saved_moments").delete().eq("id", ev.dbId);
+    try {
+      const supabase = createClient();
+      await supabase.from("saved_moments").delete().eq("id", ev.dbId);
+      toast("הרגע הוסר");
+    } catch (e) {
+      console.error("Failed to delete moment:", e);
+      toast.error("שגיאה, נסה שוב");
+    }
   };
 
   useEffect(() => {

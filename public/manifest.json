@@ -1,0 +1,16 @@
+{
+  "name": "BondFlow - רגעים עם הילדים",
+  "short_name": "BondFlow",
+  "description": "מצא רגעים אמיתיים עם הילדים שלך",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4ade80",
+  "orientation": "portrait",
+  "lang": "he",
+  "dir": "rtl",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "categories": ["lifestyle", "education"]
+}

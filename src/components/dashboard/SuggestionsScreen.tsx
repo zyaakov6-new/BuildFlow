@@ -7,6 +7,7 @@ import {
   FlaskConical, Palette, Heart,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 
 const HEBREW_TO_DAY: Record<string, number> = {
   "ראשון": 0, "שני": 1, "שלישי": 2, "רביעי": 3, "חמישי": 4, "שישי": 5, "שבת": 6,
@@ -209,9 +210,11 @@ export default function SuggestionsScreen() {
       setAllItems([]);
       setDismissed(new Set());
       setSaved(new Set());
+      toast.success("ההצעות אופסו, טוען מחדש...");
       setLoadTrigger((t) => t + 1);
     } catch (e) {
       console.error("Refresh error:", e);
+      toast.error("שגיאה בטעינה, נסה שוב");
     } finally {
       setRefreshing(false);
     }
@@ -239,6 +242,7 @@ export default function SuggestionsScreen() {
         scheduled_at: scheduledAt.toISOString(),
         completed: false,
       });
+      toast.success("הרגע נשמר ביומן! 🎉");
 
       // Push to Google Calendar via server-side route (handles token refresh)
       const endDate = new Date(scheduledAt.getTime() + item.durationMin * 60_000);
@@ -253,6 +257,7 @@ export default function SuggestionsScreen() {
       });
     } catch (e) {
       console.error("Failed to save suggestion:", e);
+      toast.error("שגיאה בשמירת הרגע, נסה שוב");
     }
   };
 

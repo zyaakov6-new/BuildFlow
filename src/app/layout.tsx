@@ -1,6 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Heebo } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "sonner";
+import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 
 const heebo = Heebo({
   variable: "--font-heebo",
@@ -13,12 +15,26 @@ export const metadata: Metadata = {
   description:
     "אפליקציית לוח הזמנים המשפחתי עם AI לעזרת הורים עסוקים. BondFlow מוצאת פרצות זמן אמיתיות ביומן שלך ומציעה פעילויות אפס-הכנה שהילדים שלך יאהבו.",
   keywords: ["זמן משפחתי", "אפליקציה להורים", "ישראל", "זמן איכות", "הורות"],
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "BondFlow",
+  },
   openGraph: {
     title: "BondFlow - הילדים שלך לא צריכים עוד כסף. הם צריכים יותר אותך.",
     description:
       "הפוך 20 דקות כאוטיות לזיכרונות שנשארים. BondFlow היא מתזמנת המשפחה עם AI שנבנתה להורים ישראלים עסוקים.",
     type: "website",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#4ade80",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -33,6 +49,8 @@ export default function RootLayout({
       className={`${heebo.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-[var(--font-heebo)]">
+        <ServiceWorkerRegistration />
+        <Toaster position="top-center" dir="rtl" richColors />
         {children}
       </body>
     </html>
