@@ -305,15 +305,32 @@ function prepLabel(mins: number | null): "אפס הכנה" | "הכנה קלה" |
   return "קצת הכנה";
 }
 
+interface UpcomingMoment {
+  id: string;
+  title: string;
+  childName: string;
+  childInitial: string;
+  childColor: string;
+  time: string;
+  accentColor: string;
+  bgColor: string;
+  IconComp: React.ElementType;
+}
+
+const HEBREW_DAYS_SHORT: Record<number, string> = {
+  0: "ראשון", 1: "שני", 2: "שלישי", 3: "רביעי", 4: "חמישי", 5: "שישי", 6: "שבת",
+};
+
 // ---- Main Dashboard ----
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>("home");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [upcomingMoments, setUpcomingMoments] = useState<UpcomingMoment[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userName, setUserName] = useState<string>("...");
   const [userInitial, setUserInitial] = useState<string>("?");
-  const [weekScore, setWeekScore] = useState<number>(72);
-  const [scoreDelta, setScoreDelta] = useState<number>(8);
+  const [weekScore, setWeekScore] = useState<number>(0);
+  const [scoreDelta, setScoreDelta] = useState<number>(0);
   const [momentsCount, setMomentsCount] = useState<number>(0);
   const [loadingData, setLoadingData] = useState(true);
 
@@ -323,47 +340,94 @@ export default function Dashboard() {
       try {
         const supabase = createClient();
 
-        // 1. User profile
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("full_name")
-            .eq("id", user.id)
-            .maybeSingle();
-          const name = profile?.full_name ?? user.email?.split("@")[0] ?? "משתמש";
-          setUserName(name);
-          setUserInitial(name[0] ?? "?");
+        // 1. User + session (session has provider_token for Google Calendar)
+        const [{ data: { user } }, { data: { session } }] = await Promise.all([
+          supabase.auth.getUser(),
+          supabase.auth.getSession(),
+        ]);
+        if (!user) return;
+
+        // 2. Profile name + persist Google Calendar token if present in session
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .maybeSingle();
+        const name = profile?.full_name ?? user.email?.split("@")[0] ?? "משתמש";
+        setUserName(name);
+        setUserInitial(name[0] ?? "?");
+
+        if (session?.provider_token) {
+          await supabase.from("profiles").upsert({
+            id: user.id,
+            google_calendar_token: session.provider_token,
+            google_calendar_refresh_token: session.provider_refresh_token ?? null,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "id" });
         }
 
-        // 2. Weekly score
+        // 3. Children (shared by suggestions + upcoming)
+        const { data: children } = await supabase
+          .from("children")
+          .select("id, name, age_group, avatar_color")
+          .eq("user_id", user.id);
+        const childMap = new Map((children ?? []).map((c) => [c.id, c]));
+
+        // 4. Weekly score
         const { data: scores } = await supabase
           .from("weekly_scores")
           .select("score, moments_count")
-          .eq("user_id", user?.id ?? "")
+          .eq("user_id", user.id)
           .order("created_at", { ascending: false })
           .limit(2);
         if (scores && scores.length > 0) {
-          setWeekScore(scores[0].score ?? 72);
+          setWeekScore(scores[0].score ?? 0);
           setMomentsCount(scores[0].moments_count ?? 0);
           if (scores.length > 1) {
-            setScoreDelta((scores[0].score ?? 72) - (scores[1].score ?? 64));
+            setScoreDelta((scores[0].score ?? 0) - (scores[1].score ?? 0));
           }
         }
 
-        // 3. Suggestions from API
+        // 5. Upcoming saved moments (next 14 days, not completed)
+        const now = new Date();
+        const twoWeeksOut = new Date(now);
+        twoWeeksOut.setDate(now.getDate() + 14);
+        const { data: upcoming } = await supabase
+          .from("saved_moments")
+          .select("id, title, child_id, scheduled_at, duration_min")
+          .eq("user_id", user.id)
+          .eq("completed", false)
+          .gte("scheduled_at", now.toISOString())
+          .lte("scheduled_at", twoWeeksOut.toISOString())
+          .order("scheduled_at", { ascending: true })
+          .limit(3);
+
+        const mappedUpcoming: UpcomingMoment[] = (upcoming ?? []).map((m) => {
+          const child = m.child_id ? childMap.get(m.child_id) : null;
+          const childName = child?.name ?? "הילד שלך";
+          const sched = m.scheduled_at ? new Date(m.scheduled_at) : null;
+          const timeStr = sched
+            ? `${HEBREW_DAYS_SHORT[sched.getDay()]} ${String(sched.getHours()).padStart(2, "0")}:${String(sched.getMinutes()).padStart(2, "0")}`
+            : "";
+          return {
+            id: m.id,
+            title: m.title,
+            childName,
+            childInitial: childName[0] ?? "?",
+            childColor: child?.avatar_color ?? "oklch(0.72 0.18 42)",
+            time: timeStr,
+            accentColor: "oklch(0.55 0.14 140)",
+            bgColor: "oklch(0.88 0.08 140 / 0.15)",
+            IconComp: Sparkles,
+          };
+        });
+        setUpcomingMoments(mappedUpcoming);
+
+        // 6. Suggestions from API
         const res = await fetch("/api/suggestions");
         if (res.ok) {
           const json = await res.json();
           const raw = json.suggestions ?? [];
-
-          // Fetch children to get names/colors
-          const { data: children } = await supabase
-            .from("children")
-            .select("id, name, age_group, avatar_color")
-            .eq("user_id", user?.id ?? "");
-          const childMap = new Map((children ?? []).map((c) => [c.id, c]));
-
           const mapped: Suggestion[] = raw.map((s: {
             id: string; title: string; child_id?: string; duration_min?: number;
             time_slot?: string; day_label?: string; prep_min?: number;
@@ -389,7 +453,8 @@ export default function Dashboard() {
             };
           });
           setSuggestions(mapped);
-          if (mapped.length > 0) setMomentsCount(mapped.filter((m) => m.blocked).length);
+          const savedCount = mapped.filter((m) => m.blocked).length;
+          if (savedCount > 0) setMomentsCount(savedCount);
         }
       } catch (e) {
         console.error("Dashboard load error:", e);
@@ -442,16 +507,17 @@ export default function Dashboard() {
         completed: false,
       });
 
-      // 3. Try to push to Google Calendar if token exists
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("google_calendar_token")
-        .eq("id", user.id)
-        .maybeSingle();
+      // 3. Push to Google Calendar
+      // Use session provider_token first (freshest), then fall back to stored token
+      const { data: { session } } = await supabase.auth.getSession();
+      const calendarToken = session?.provider_token ?? await (async () => {
+        const { data: p } = await supabase.from("profiles").select("google_calendar_token").eq("id", user.id).maybeSingle();
+        return p?.google_calendar_token ?? null;
+      })();
 
-      if (profile?.google_calendar_token) {
+      if (calendarToken) {
         await addToGoogleCalendar({
-          accessToken: profile.google_calendar_token,
+          accessToken: calendarToken,
           title: suggestion.title,
           durationMin: suggestion.duration_min,
           scheduledAt: tomorrow.toISOString(),
@@ -604,32 +670,53 @@ export default function Dashboard() {
               {/* Upcoming moments */}
               <div>
                 <div className="flex items-center justify-between mb-3">
+                  {/* Title on RIGHT (DOM first = visual right in RTL) */}
+                  <p className="text-sm font-black" style={{ color: "oklch(0.2 0.03 255)" }}>
+                    הרגעים הקרובים
+                  </p>
+                  {/* Button on LEFT (DOM last = visual left in RTL) */}
                   <button
                     onClick={() => setActiveTab("calendar")}
                     className="flex items-center gap-1 text-xs font-bold"
                     style={{ color: "oklch(0.58 0.14 140)" }}
                   >
-                    <ChevronLeft className="w-3.5 h-3.5" />
                     כל היומן
+                    <ChevronLeft className="w-3.5 h-3.5" />
                   </button>
-                  <p className="text-sm font-black" style={{ color: "oklch(0.2 0.03 255)" }}>
-                    הרגעים הקרובים
-                  </p>
                 </div>
-                <div className="flex flex-col gap-2.5">
-                  <UpcomingCard
-                    title="בניית לגו - רכבת הרים"
-                    child="יואב" childInitial="י" childColor="oklch(0.72 0.18 42)"
-                    time="שלישי 17:30"
-                    Icon={Blocks} accentColor="oklch(0.55 0.14 140)" bgColor="oklch(0.88 0.08 140 / 0.15)"
-                  />
-                  <UpcomingCard
-                    title="קריאה ביחד"
-                    child="נועה" childInitial="נ" childColor="oklch(0.60 0.18 280)"
-                    time="חמישי 20:00"
-                    Icon={BookOpen} accentColor="oklch(0.55 0.18 255)" bgColor="oklch(0.90 0.06 255 / 0.12)"
-                  />
-                </div>
+                {upcomingMoments.length > 0 ? (
+                  <div className="flex flex-col gap-2.5">
+                    {upcomingMoments.map((m) => (
+                      <UpcomingCard
+                        key={m.id}
+                        title={m.title}
+                        child={m.childName}
+                        childInitial={m.childInitial}
+                        childColor={m.childColor}
+                        time={m.time}
+                        Icon={m.IconComp}
+                        accentColor={m.accentColor}
+                        bgColor={m.bgColor}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div
+                    className="rounded-2xl p-4 text-center border"
+                    style={{ background: "white", borderColor: "oklch(0.93 0.02 85)" }}
+                  >
+                    <p className="text-xs font-semibold mb-1" style={{ color: "oklch(0.55 0.03 255)" }}>
+                      אין רגעים קרובים עדיין
+                    </p>
+                    <button
+                      onClick={() => setActiveTab("suggestions")}
+                      className="text-xs font-bold"
+                      style={{ color: "oklch(0.58 0.14 140)" }}
+                    >
+                      שמור הצעה ראשונה ←
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 

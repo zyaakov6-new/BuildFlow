@@ -184,16 +184,16 @@ export default function SuggestionsScreen() {
         completed: false,
       });
 
-      // Try Google Calendar
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("google_calendar_token")
-        .eq("id", user.id)
-        .maybeSingle();
+      // Try Google Calendar — session token is freshest, fall back to stored token
+      const { data: { session } } = await supabase.auth.getSession();
+      const calendarToken = session?.provider_token ?? await (async () => {
+        const { data: p } = await supabase.from("profiles").select("google_calendar_token").eq("id", user.id).maybeSingle();
+        return p?.google_calendar_token ?? null;
+      })();
 
-      if (profile?.google_calendar_token) {
+      if (calendarToken) {
         await addToGoogleCalendar({
-          accessToken: profile.google_calendar_token,
+          accessToken: calendarToken,
           title: item.title,
           durationMin: item.durationMin,
           scheduledAt: tomorrow.toISOString(),

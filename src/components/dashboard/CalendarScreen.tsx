@@ -44,20 +44,20 @@ export default function CalendarScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get saved moments (scheduled this week and next 7 days)
+      // Get all upcoming saved moments (next 30 days) + past week
       const now = new Date();
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() - now.getDay()); // Sunday
-      weekStart.setHours(0, 0, 0, 0);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 7);
+      const rangeStart = new Date(now);
+      rangeStart.setDate(now.getDate() - 7); // include last week
+      rangeStart.setHours(0, 0, 0, 0);
+      const rangeEnd = new Date(now);
+      rangeEnd.setDate(now.getDate() + 30);
 
       const { data: saved } = await supabase
         .from("saved_moments")
         .select("id, title, child_id, scheduled_at, duration_min, completed")
         .eq("user_id", user.id)
-        .gte("scheduled_at", weekStart.toISOString())
-        .lte("scheduled_at", weekEnd.toISOString())
+        .gte("scheduled_at", rangeStart.toISOString())
+        .lte("scheduled_at", rangeEnd.toISOString())
         .order("scheduled_at", { ascending: true });
 
       // Get children for name/color mapping
