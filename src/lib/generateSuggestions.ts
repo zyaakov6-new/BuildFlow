@@ -83,7 +83,7 @@ child_index הוא אינדקס הילד (0 עבור ילד ראשון, 1 עבו
 
   // Use the SDK directly in Node.js serverless — most reliable approach
   const response = await client.messages.create({
-    model: "claude-3-5-haiku-20241022",
+    model: "claude-haiku-4-5",
     max_tokens: 2048,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: userPrompt }],
