@@ -43,6 +43,7 @@ export default function CalendarScreen({ onNavigateToSuggestions }: { onNavigate
   const [activeDays, setActiveDays] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [calStatus, setCalStatus] = useState<CalendarStatus>("loading");
+  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
 
   const handleComplete = async (ev: UnifiedEvent) => {
     if (!ev.dbId) return;
@@ -192,6 +193,24 @@ export default function CalendarScreen({ onNavigateToSuggestions }: { onNavigate
     return acc;
   }, {});
 
+  // Next 7 days for the day navigation strip
+  const next7 = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() + i);
+    const dateKey = `${HEBREW_DAYS[d.getDay()]} ${fmtDate(d)}`;
+    return {
+      dateKey,
+      dayShort: WEEK_DAYS[d.getDay()],
+      dayNum: d.getDate(),
+      isToday: i === 0,
+      hasEvents: !!grouped[dateKey],
+    };
+  });
+
+  // Filter events by selected day (null = show all)
+  const visibleGrouped = selectedDayKey
+    ? (grouped[selectedDayKey] ? { [selectedDayKey]: grouped[selectedDayKey] } : {})
+    : grouped;
+
   const weekNumber = Math.ceil(
     ((new Date().getTime() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000 +
       new Date(new Date().getFullYear(), 0, 1).getDay() + 1) / 7
@@ -251,51 +270,71 @@ export default function CalendarScreen({ onNavigateToSuggestions }: { onNavigate
         </h2>
       </div>
 
-      {/* Week overview strip */}
-      <div
-        className="rounded-2xl p-4 mb-5 flex items-center justify-between"
-        style={{ background: "white", border: "1px solid oklch(0.93 0.02 85)", boxShadow: "0 2px 8px oklch(0 0 0 / 0.04)" }}
-      >
-        <div className="flex flex-col items-start gap-1">
-          <div className="flex items-center gap-1.5 text-xs font-bold" style={{ color: "oklch(0.55 0.14 140)" }}>
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            {bondflowCount} רגעים שמורים
-          </div>
+      {/* Day navigation strip */}
+      <div className="overflow-x-auto mb-5 -mx-1 px-1">
+        <div className="flex gap-2 flex-row-reverse" style={{ minWidth: "max-content" }}>
+          {/* "All" pill */}
+          <button
+            onClick={() => setSelectedDayKey(null)}
+            className="flex flex-col items-center gap-0.5 rounded-2xl px-3 py-2.5 flex-shrink-0 transition-all"
+            style={{
+              minWidth: "54px",
+              background: !selectedDayKey ? "oklch(0.65 0.14 140)" : "white",
+              border: `1px solid ${!selectedDayKey ? "transparent" : "oklch(0.93 0.02 85)"}`,
+              boxShadow: !selectedDayKey ? "0 2px 8px oklch(0.65 0.14 140 / 0.3)" : "none",
+            }}
+          >
+            <span className="text-xs font-bold" style={{ color: !selectedDayKey ? "white" : "oklch(0.55 0.03 255)" }}>הכל</span>
+            <span className="text-sm font-black" style={{ color: !selectedDayKey ? "white" : "oklch(0.2 0.03 255)" }}>
+              {bondflowCount + googleCount}
+            </span>
+          </button>
+          {next7.map((day) => {
+            const isSelected = selectedDayKey === day.dateKey;
+            return (
+              <button
+                key={day.dateKey}
+                onClick={() => setSelectedDayKey(isSelected ? null : day.dateKey)}
+                className="flex flex-col items-center gap-0.5 rounded-2xl px-3 py-2.5 flex-shrink-0 transition-all"
+                style={{
+                  minWidth: "54px",
+                  background: isSelected ? "oklch(0.65 0.14 140)" : (day.isToday ? "oklch(0.88 0.08 140 / 0.2)" : "white"),
+                  border: `1px solid ${isSelected ? "transparent" : "oklch(0.93 0.02 85)"}`,
+                  boxShadow: isSelected ? "0 2px 8px oklch(0.65 0.14 140 / 0.3)" : "none",
+                }}
+              >
+                <span className="text-xs font-bold" style={{ color: isSelected ? "white" : "oklch(0.55 0.03 255)" }}>
+                  {day.dayShort}
+                </span>
+                <span className="text-sm font-black" style={{ color: isSelected ? "white" : "oklch(0.2 0.03 255)" }}>
+                  {day.dayNum}
+                </span>
+                <div
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{ background: day.hasEvents ? (isSelected ? "white" : "oklch(0.65 0.14 140)") : "transparent" }}
+                />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Stats row */}
+      {(bondflowCount > 0 || googleCount > 0) && (
+        <div className="flex items-center gap-3 mb-4 flex-row-reverse flex-wrap text-xs">
+          {bondflowCount > 0 && (
+            <div className="flex items-center gap-1.5 font-bold" style={{ color: "oklch(0.55 0.14 140)" }}>
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              {bondflowCount} רגעים שמורים
+            </div>
+          )}
           {googleCount > 0 && (
-            <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: "oklch(0.52 0.14 255)" }}>
+            <div className="flex items-center gap-1.5 font-semibold" style={{ color: "oklch(0.52 0.14 255)" }}>
               <Calendar className="w-3 h-3" />
               {googleCount} אירועי Google
             </div>
           )}
-        </div>
-        <div className="flex gap-1.5">
-          {WEEK_DAYS.map((d, i) => (
-            <div
-              key={i}
-              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-              style={{
-                background: activeDays.includes(i) ? "oklch(0.65 0.14 140)" : "oklch(0.93 0.02 85)",
-                color: activeDays.includes(i) ? "white" : "oklch(0.62 0.03 255)",
-              }}
-            >
-              {d}
-            </div>
-          ))}
-        </div>
-        <p className="text-xs font-bold" style={{ color: "oklch(0.55 0.03 255)" }}>שבוע {weekNumber}</p>
-      </div>
-
-      {/* Legend */}
-      {googleCount > 0 && bondflowCount > 0 && (
-        <div className="flex items-center gap-4 mb-4 flex-row-reverse flex-wrap">
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full" style={{ background: "oklch(0.65 0.14 140)" }} />
-            <span className="text-xs" style={{ color: "oklch(0.55 0.03 255)" }}>BondFlow</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full" style={{ background: "oklch(0.52 0.14 255)" }} />
-            <span className="text-xs" style={{ color: "oklch(0.55 0.03 255)" }}>Google Calendar</span>
-          </div>
+          <span className="font-medium" style={{ color: "oklch(0.65 0.03 255)" }}>שבוע {weekNumber}</span>
         </div>
       )}
 
@@ -307,9 +346,22 @@ export default function CalendarScreen({ onNavigateToSuggestions }: { onNavigate
         </div>
       )}
 
+      {!loading && selectedDayKey && Object.keys(visibleGrouped).length === 0 && (
+        <div className="text-center py-10">
+          <p className="text-sm font-bold mb-1.5" style={{ color: "oklch(0.55 0.03 255)" }}>אין אירועים ביום זה</p>
+          <button
+            onClick={() => setSelectedDayKey(null)}
+            className="text-xs font-bold"
+            style={{ color: "oklch(0.58 0.14 140)" }}
+          >
+            הצג את כל האירועים ←
+          </button>
+        </div>
+      )}
+
       {!loading && events.length > 0 && (
         <div className="flex flex-col gap-5">
-          {Object.entries(grouped).map(([dayKey, dayEvents]) => (
+          {Object.entries(visibleGrouped).map(([dayKey, dayEvents]) => (
             <div key={dayKey}>
               <div className="flex items-center gap-3 flex-row-reverse mb-2.5">
                 <div
@@ -430,8 +482,8 @@ export default function CalendarScreen({ onNavigateToSuggestions }: { onNavigate
         </div>
       )}
 
-      {/* Empty state */}
-      {!loading && events.length === 0 && (
+      {/* Empty state - only when no day filter and no events */}
+      {!loading && events.length === 0 && !selectedDayKey && (
         <div className="text-center py-12">
           <div
             className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"

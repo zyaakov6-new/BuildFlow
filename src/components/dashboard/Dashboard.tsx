@@ -239,12 +239,11 @@ function HomeSuggestionCard({
 
 // ---- Nav tabs config ----
 // DOM order = visual RTL order (first = rightmost)
-const NAV_TABS: { id: Tab; label: string; Icon: React.ElementType }[] = [
-  { id: "home",        label: "בית",    Icon: Home },
-  { id: "suggestions", label: "הצעות",  Icon: Lightbulb },
-  { id: "calendar",    label: "יומן",   Icon: Calendar },
-  { id: "reports",     label: "דוחות",  Icon: BarChart2 },
-  { id: "profile",     label: "פרופיל", Icon: User },
+const NAV_TABS: { id: Tab; label: string; Icon: React.ElementType; primary?: boolean }[] = [
+  { id: "home",        label: "בית",         Icon: Home },
+  { id: "suggestions", label: "מצא פעילות",  Icon: Sparkles, primary: true },
+  { id: "calendar",    label: "יומן",        Icon: Calendar },
+  { id: "profile",     label: "פרופיל",      Icon: User },
 ];
 
 // ---- Mobile Bottom Nav ----
@@ -259,8 +258,32 @@ function BottomNav({ active, setActive }: { active: Tab; setActive: (t: Tab) => 
       }}
     >
       <div className="flex items-center justify-around px-1 pb-safe">
-        {NAV_TABS.map(({ id, label, Icon }) => {
+        {NAV_TABS.map(({ id, label, Icon, primary }) => {
           const isActive = active === id;
+          if (primary) {
+            return (
+              <button
+                key={id}
+                onClick={() => setActive(id)}
+                className="flex flex-col items-center gap-0.5 py-2 px-2 min-w-0 flex-1 transition-all active:scale-95"
+              >
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all -mt-3"
+                  style={{
+                    background: isActive
+                      ? "linear-gradient(135deg, oklch(0.58 0.16 148), oklch(0.52 0.18 148))"
+                      : "linear-gradient(135deg, oklch(0.65 0.14 140), oklch(0.58 0.16 148))",
+                    boxShadow: "0 4px 16px oklch(0.65 0.14 140 / 0.45)",
+                  }}
+                >
+                  <Icon className="w-5 h-5 text-white" strokeWidth={2.5} />
+                </div>
+                <span className="text-xs font-bold" style={{ color: "oklch(0.48 0.14 140)" }}>
+                  {label}
+                </span>
+              </button>
+            );
+          }
           return (
             <button
               key={id}
@@ -371,6 +394,7 @@ export default function Dashboard() {
   const [momentsCount, setMomentsCount] = useState<number>(0);
   const [loadingData, setLoadingData] = useState(true);
   const [weekActiveDays, setWeekActiveDays] = useState<number[]>([]);
+  const [calendarConnected, setCalendarConnected] = useState<boolean | null>(null);
 
   // ---- Load real data on mount ----
   useEffect(() => {
@@ -388,12 +412,13 @@ export default function Dashboard() {
         // 2. Profile name + persist Google Calendar token if present in session
         const { data: profile } = await supabase
           .from("profiles")
-          .select("full_name")
+          .select("full_name, google_calendar_token")
           .eq("id", user.id)
           .maybeSingle();
         const name = profile?.full_name ?? user.email?.split("@")[0] ?? "משתמש";
         setUserName(name);
         setUserInitial(name[0] ?? "?");
+        setCalendarConnected(!!profile?.google_calendar_token);
 
         if (session?.provider_token) {
           await supabase.from("profiles").upsert({
@@ -585,6 +610,18 @@ export default function Dashboard() {
     }
   };
 
+  const connectGoogleCalendar = async () => {
+    const supabase = createClient();
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        scopes: "https://www.googleapis.com/auth/calendar.events",
+        queryParams: { access_type: "offline", prompt: "consent" },
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+  };
+
   const activeSuggestions = suggestions.filter((s) => !s.blocked);
   const firstSuggestion = activeSuggestions[0];
 
@@ -621,7 +658,7 @@ export default function Dashboard() {
 
         {/* Desktop nav - center */}
         <nav className="hidden md:flex items-center gap-1 flex-1 justify-center">
-          {NAV_TABS.map(({ id, label, Icon }) => {
+          {NAV_TABS.map(({ id, label, Icon, primary }) => {
             const isActive = activeTab === id && id !== "profile";
             return (
               <button
@@ -629,11 +666,14 @@ export default function Dashboard() {
                 onClick={() => handleTabClick(id)}
                 className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all"
                 style={{
-                  background: isActive ? "oklch(0.88 0.08 140 / 0.2)" : "transparent",
-                  color: isActive ? "oklch(0.42 0.14 140)" : "oklch(0.55 0.03 255)",
+                  background: primary
+                    ? (isActive ? "oklch(0.58 0.16 148)" : "linear-gradient(135deg, oklch(0.65 0.14 140), oklch(0.58 0.16 148))")
+                    : (isActive ? "oklch(0.88 0.08 140 / 0.2)" : "transparent"),
+                  color: primary ? "white" : (isActive ? "oklch(0.42 0.14 140)" : "oklch(0.55 0.03 255)"),
+                  boxShadow: primary ? "0 3px 10px oklch(0.65 0.14 140 / 0.3)" : "none",
                 }}
               >
-                <Icon className="w-4 h-4" strokeWidth={isActive ? 2.5 : 1.75} />
+                <Icon className="w-4 h-4" strokeWidth={primary || isActive ? 2.5 : 1.75} />
                 {label}
               </button>
             );
@@ -692,8 +732,72 @@ export default function Dashboard() {
 
             {/* Main column */}
             <div className="lg:col-span-2 flex flex-col gap-5">
-              {/* Score ring - now warm */}
-              <ScoreRing score={weekScore} delta={scoreDelta} activeDays={weekActiveDays} />
+              {/* Weekly Report Card */}
+              <div
+                className="rounded-3xl overflow-hidden"
+                style={{
+                  background: "linear-gradient(135deg, oklch(0.28 0.05 255), oklch(0.32 0.08 265))",
+                  boxShadow: "0 8px 40px oklch(0.28 0.05 255 / 0.35)",
+                }}
+              >
+                <div className="relative p-5">
+                  <div className="absolute -top-6 -left-6 w-32 h-32 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: "oklch(0.65 0.14 140)" }} />
+                  <div className="absolute -bottom-4 -right-4 w-24 h-24 rounded-full opacity-15 blur-xl pointer-events-none" style={{ background: "oklch(0.72 0.18 42)" }} />
+
+                  <div className="relative z-10 flex items-center justify-between mb-4">
+                    <button
+                      onClick={() => setActiveTab("reports")}
+                      className="text-xs font-bold flex items-center gap-1 transition-opacity hover:opacity-75"
+                      style={{ color: "oklch(0.65 0.03 255)" }}
+                    >
+                      <ChevronLeft className="w-3 h-3" />
+                      דוח מלא
+                    </button>
+                    <p className="text-sm font-black text-white">הציון השבועי שלך</p>
+                  </div>
+
+                  <div className="relative z-10 text-center mb-4">
+                    <div className="inline-flex items-end gap-1.5">
+                      <span className="text-6xl font-black text-white leading-none">{weekScore}</span>
+                      <span className="text-xl font-bold mb-1" style={{ color: "oklch(0.65 0.03 255)" }}>/100</span>
+                    </div>
+                    <p className="text-sm font-bold mt-1" style={{ color: "oklch(0.65 0.14 140)" }}>ציון חיבור משפחתי</p>
+                    {scoreDelta !== 0 && (
+                      <p className="text-xs mt-0.5" style={{ color: scoreDelta > 0 ? "oklch(0.65 0.14 140)" : "oklch(0.65 0.08 25)" }}>
+                        {scoreDelta > 0 ? `▲ +${scoreDelta}` : `▼ ${scoreDelta}`} משבוע שעבר
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="relative z-10 grid grid-cols-2 gap-3 mb-4">
+                    {[
+                      { value: momentsCount, label: "רגעים שמורים" },
+                      { value: activeSuggestions.length, label: "הצעות זמינות" },
+                    ].map(({ value, label }, i) => (
+                      <div key={i} className="rounded-2xl p-3 text-center" style={{ background: "oklch(1 0 0 / 0.1)" }}>
+                        <p className="text-2xl font-black text-white">{value}</p>
+                        <p className="text-xs" style={{ color: "oklch(0.7 0.03 255)" }}>{label}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="relative z-10 flex items-center justify-between rounded-2xl px-3 py-2.5" style={{ background: "oklch(1 0 0 / 0.08)" }}>
+                    <span className="text-xs" style={{ color: "oklch(0.7 0.03 255)" }}>ראשון</span>
+                    <div className="flex gap-1.5">
+                      {[0,1,2,3,4,5,6].map((dayIdx) => {
+                        const done = weekActiveDays.includes(dayIdx);
+                        return (
+                          <div key={dayIdx} className="w-6 h-6 rounded-full flex items-center justify-center"
+                            style={{ background: done ? "oklch(0.65 0.14 140)" : "oklch(1 0 0 / 0.15)" }}>
+                            {done && <CheckCircle2 className="w-3.5 h-3.5 text-white" strokeWidth={2.5} />}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <span className="text-xs" style={{ color: "oklch(0.7 0.03 255)" }}>שבת</span>
+                  </div>
+                </div>
+              </div>
 
               {/* Quick stats */}
               <div className="grid grid-cols-3 gap-3">
@@ -842,27 +946,30 @@ export default function Dashboard() {
                 )}
               </div>
 
-              {/* Week progress teaser */}
-              <div
-                className="rounded-2xl p-4 text-right border"
-                style={{ background: "white", borderColor: "oklch(0.93 0.02 85)" }}
-              >
-                <div className="flex items-center gap-2 flex-row-reverse mb-2">
-                  <BarChart2 className="w-4 h-4" style={{ color: "oklch(0.52 0.18 255)" }} />
-                  <p className="text-sm font-black" style={{ color: "oklch(0.2 0.03 255)" }}>מגמה חיובית</p>
-                </div>
-                <p className="text-xs leading-relaxed" style={{ color: "oklch(0.55 0.03 255)" }}>
-                  +17 נקודות בחודש האחרון. אתה בדרך הנכונה.
-                </p>
-                <button
-                  onClick={() => setActiveTab("reports")}
-                  className="mt-3 text-xs font-bold flex items-center gap-1 flex-row-reverse"
-                  style={{ color: "oklch(0.52 0.14 140)" }}
+              {/* Google Calendar connect card */}
+              {calendarConnected === false && (
+                <div
+                  className="rounded-2xl p-4 text-right border"
+                  style={{ background: "white", borderColor: "oklch(0.88 0.06 255 / 0.5)", boxShadow: "0 2px 10px oklch(0.52 0.14 255 / 0.08)" }}
                 >
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                  ראה דוח מלא
-                </button>
-              </div>
+                  <div className="flex items-center gap-2 flex-row-reverse mb-2">
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "oklch(0.88 0.06 255 / 0.15)" }}>
+                      <Calendar className="w-4 h-4" style={{ color: "oklch(0.52 0.14 255)" }} />
+                    </div>
+                    <p className="text-sm font-black" style={{ color: "oklch(0.2 0.03 255)" }}>חבר Google Calendar</p>
+                  </div>
+                  <p className="text-xs leading-relaxed mb-3" style={{ color: "oklch(0.55 0.03 255)" }}>
+                    חבר את היומן שלך כדי שנמצא לך זמן משפחתי אמיתי בין הפגישות
+                  </p>
+                  <button
+                    onClick={connectGoogleCalendar}
+                    className="w-full rounded-xl py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90 active:scale-[0.98]"
+                    style={{ background: "oklch(0.52 0.14 255)" }}
+                  >
+                    חבר עכשיו
+                  </button>
+                </div>
+              )}
             </div>
           </div>
           </>
@@ -870,20 +977,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ---- FAB - visible on home tab only ---- */}
-      {activeTab === "home" && (
-        <button
-          onClick={() => setActiveTab("suggestions")}
-          className="fixed bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-black text-white shadow-lg transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
-          style={{
-            background: "linear-gradient(135deg, oklch(0.65 0.14 140), oklch(0.60 0.18 148))",
-            boxShadow: "0 8px 32px oklch(0.65 0.14 140 / 0.45)",
-          }}
-        >
-          <Sparkles className="w-4 h-4" />
-          מצא לי זמן משפחתי עכשיו
-        </button>
-      )}
 
       {/* ---- Mobile bottom nav ---- */}
       <BottomNav active={activeTab} setActive={handleTabClick} />
