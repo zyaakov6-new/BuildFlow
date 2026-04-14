@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
+import { generateAISuggestions } from "@/lib/generateSuggestions";
 
 type ChildRow = Database["public"]["Tables"]["children"]["Row"];
 
@@ -471,7 +472,6 @@ export async function GET() {
   }
 
   const weekNumber = getISOWeekNumber(new Date());
-  const year = new Date().getFullYear();
 
   // Check for existing suggestions this week
   const { data: existing } = await supabase
@@ -492,36 +492,99 @@ export async function GET() {
     .eq("user_id", user.id);
   const children = rawChildren as ChildRow[] | null;
 
-  // Gather interests + age groups across all children
-  const allInterests = (children ?? []).flatMap((c) => c.interests ?? []);
-  const allAgeGroups = (children ?? []).map((c) => c.age_group).filter(Boolean);
+  if (!children || children.length === 0) {
+    return Response.json({ suggestions: [] });
+  }
 
-  // Rank and pick top 6 templates
-  const ranked = [...TEMPLATES]
-    .map((t) => ({ t, score: scoreTemplate(t, allInterests, allAgeGroups, currentSeason()) }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 6)
-    .map(({ t }) => t);
+  // Fetch recently completed/saved moments to avoid repeats
+  const recentCutoff = new Date();
+  recentCutoff.setDate(recentCutoff.getDate() - 30);
+  const { data: recentMoments } = await supabase
+    .from("saved_moments")
+    .select("title")
+    .eq("user_id", user.id)
+    .gte("created_at", recentCutoff.toISOString())
+    .limit(15);
+  const recentTitles = (recentMoments ?? []).map((m) => m.title).filter(Boolean);
 
-  // Build insert rows, attaching the first child where possible
-  const firstChildId = children && children.length > 0 ? children[0].id : null;
+  // Try AI generation, fall back to templates
+  let toInsert: Array<{
+    user_id: string;
+    child_id: string | null;
+    title: string;
+    description: string;
+    duration_min: number;
+    prep_min: number;
+    time_slot: string;
+    day_label: string;
+    category: string;
+    activity_type: string;
+    accent_color: string;
+    bg_color: string;
+    status: "pending";
+    week_number: number;
+  }>;
 
-  const toInsert = ranked.map((t) => ({
-    user_id: user.id,
-    child_id: firstChildId,
-    title: t.title,
-    description: t.description,
-    duration_min: t.duration_min,
-    prep_min: t.prep_min,
-    time_slot: t.time_slot,
-    day_label: t.day_label,
-    category: t.category,
-    activity_type: t.activity_type,
-    accent_color: t.accent_color,
-    bg_color: t.bg_color,
-    status: "pending" as const,
-    week_number: weekNumber,
-  }));
+  try {
+    const childProfiles = children.map((c) => ({
+      id: c.id,
+      name: c.name,
+      age_group: c.age_group,
+      interests: c.interests ?? [],
+    }));
+
+    const aiSuggestions = await generateAISuggestions(childProfiles, recentTitles);
+
+    toInsert = aiSuggestions.map((s) => {
+      const child = children[s.child_index] ?? children[0];
+      return {
+        user_id: user.id,
+        child_id: child.id,
+        title: s.title,
+        description: s.description,
+        duration_min: s.duration_min,
+        prep_min: s.prep_min,
+        time_slot: s.time_slot,
+        day_label: s.day_label,
+        category: s.category,
+        activity_type: s.activity_type,
+        accent_color: s.accent_color,
+        bg_color: s.bg_color,
+        status: "pending" as const,
+        week_number: weekNumber,
+      };
+    });
+  } catch (err) {
+    console.error("AI generation failed, falling back to templates:", err);
+
+    // Fallback: use template system
+    const allInterests = children.flatMap((c) => c.interests ?? []);
+    const allAgeGroups = children.map((c) => c.age_group).filter(Boolean);
+    const firstChildId = children[0].id;
+
+    const ranked = [...TEMPLATES]
+      .map((t) => ({ t, score: scoreTemplate(t, allInterests, allAgeGroups, currentSeason()) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 6)
+      .map(({ t }) => t);
+
+    toInsert = ranked.map((t) => ({
+      user_id: user.id,
+      child_id: firstChildId,
+      title: t.title,
+      description: t.description,
+      duration_min: t.duration_min,
+      prep_min: t.prep_min,
+      time_slot: t.time_slot,
+      day_label: t.day_label,
+      category: t.category,
+      activity_type: t.activity_type,
+      accent_color: t.accent_color,
+      bg_color: t.bg_color,
+      status: "pending" as const,
+      week_number: weekNumber,
+    }));
+  }
 
   const { data: inserted, error } = await supabase
     .from("suggestions")
@@ -529,7 +592,6 @@ export async function GET() {
     .select();
 
   if (error) {
-    // Return the unsaved objects so UI still works
     return Response.json({ suggestions: toInsert });
   }
 
