@@ -109,6 +109,8 @@ export default function SuggestionsScreen() {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [showWhy, setShowWhy] = useState(false);
+  const [loadTrigger, setLoadTrigger] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Filters
   const [placeFilter, setPlaceFilter] = useState<PlaceFilter>("all");
@@ -188,7 +190,32 @@ export default function SuggestionsScreen() {
       }
     }
     load();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadTrigger]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      // Reset all dismissed suggestions back to pending so they reappear
+      await supabase
+        .from("suggestions")
+        .update({ status: "pending" })
+        .eq("user_id", user.id)
+        .eq("status", "dismissed");
+      // Clear local state and trigger reload
+      setAllItems([]);
+      setDismissed(new Set());
+      setSaved(new Set());
+      setLoadTrigger((t) => t + 1);
+    } catch (e) {
+      console.error("Refresh error:", e);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleSave = async (item: SuggestionItem) => {
     setSaved((prev) => new Set(prev).add(item.id));
@@ -339,8 +366,25 @@ export default function SuggestionsScreen() {
       {filtered.length === 0 && (
         <div className="rounded-2xl p-8 text-center border" style={{ background: "white", borderColor: "oklch(0.93 0.02 85)" }}>
           <Sparkles className="w-8 h-8 mx-auto mb-3" style={{ color: "oklch(0.65 0.14 140)" }} />
-          <p className="font-black text-sm mb-1" style={{ color: "oklch(0.2 0.03 255)" }}>אין הצעות עם הסינון הזה</p>
-          <p className="text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>נסה לשנות את הסינון</p>
+          {allItems.length > 0 && dismissed.size + saved.size >= allItems.length ? (
+            <>
+              <p className="font-black text-sm mb-1" style={{ color: "oklch(0.2 0.03 255)" }}>עברת על כל ההצעות השבוע</p>
+              <p className="text-xs mb-4" style={{ color: "oklch(0.6 0.03 255)" }}>רוצה לראות אותן שוב?</p>
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-black text-white disabled:opacity-60"
+                style={{ background: "linear-gradient(135deg, oklch(0.65 0.14 140), oklch(0.58 0.16 148))" }}
+              >
+                {refreshing ? "טוען..." : "קבל עוד הצעות"}
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="font-black text-sm mb-1" style={{ color: "oklch(0.2 0.03 255)" }}>אין הצעות עם הסינון הזה</p>
+              <p className="text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>נסה לשנות את הסינון</p>
+            </>
+          )}
         </div>
       )}
 

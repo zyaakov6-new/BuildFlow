@@ -106,16 +106,20 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const [profileRes, childrenRes, momentsRes, scoresRes] = await Promise.all([
+      const [profileRes, childrenRes, momentsRes, scoresRes] = await Promise.allSettled([
         supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
         supabase.from("children").select("*").eq("user_id", user.id).order("created_at"),
         supabase.from("saved_moments").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("weekly_scores").select("week_number").eq("user_id", user.id),
       ]);
 
-      const name = profileRes.data?.full_name ?? user.email?.split("@")[0] ?? "משתמש";
-      const kids = (childrenRes.data ?? []) as ChildRecord[];
-      setChildren(kids);
+      const profileData = profileRes.status === "fulfilled" ? profileRes.value.data : null;
+      const kidsData    = childrenRes.status === "fulfilled" ? (childrenRes.value.data ?? []) as ChildRecord[] : [];
+      const momentsCount = momentsRes.status === "fulfilled" ? (momentsRes.value.count ?? 0) : 0;
+      const scoresData   = scoresRes.status === "fulfilled"  ? (scoresRes.value.data ?? []) : [];
+
+      const name = profileData?.full_name ?? user.email?.split("@")[0] ?? "משתמש";
+      setChildren(kidsData);
 
       setUserData({
         name,
@@ -126,9 +130,9 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
         plan: "free",
         planLabel: "חינמי",
         stats: {
-          totalMoments: momentsRes.count ?? 0,
-          weeksActive: scoresRes.data?.length ?? 0,
-          childrenCount: kids.length,
+          totalMoments: momentsCount,
+          weeksActive: scoresData.length,
+          childrenCount: kidsData.length,
         },
       });
     }

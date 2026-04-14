@@ -20,14 +20,16 @@ function fmtTime(iso: string | undefined | null): string {
 
 interface UnifiedEvent {
   id: string;
+  dbId: string | null;  // actual saved_moments row id (bondflow only)
   title: string;
-  time: string;        // "HH:MM" or "" for all-day
-  duration: string;    // "30 דק'" or "כל היום"
-  day: string;         // Hebrew weekday name
-  date: string;        // "DD/M"
-  sortKey: string;     // ISO for sorting
+  time: string;
+  duration: string;
+  day: string;
+  date: string;
+  sortKey: string;
   dayIndex: number;
   source: "bondflow" | "google";
+  completed?: boolean;
   childName?: string;
   childInitial?: string;
   childColor?: string;
@@ -35,11 +37,25 @@ interface UnifiedEvent {
 
 type CalendarStatus = "loading" | "ready" | "no_token" | "expired";
 
-export default function CalendarScreen() {
+export default function CalendarScreen({ onNavigateToSuggestions }: { onNavigateToSuggestions?: () => void }) {
   const [events, setEvents] = useState<UnifiedEvent[]>([]);
   const [activeDays, setActiveDays] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [calStatus, setCalStatus] = useState<CalendarStatus>("loading");
+
+  const handleComplete = async (ev: UnifiedEvent) => {
+    if (!ev.dbId) return;
+    setEvents((prev) => prev.map((e) => e.id === ev.id ? { ...e, completed: true } : e));
+    const supabase = createClient();
+    await supabase.from("saved_moments").update({ completed: true }).eq("id", ev.dbId);
+  };
+
+  const handleDelete = async (ev: UnifiedEvent) => {
+    if (!ev.dbId) return;
+    setEvents((prev) => prev.filter((e) => e.id !== ev.id));
+    const supabase = createClient();
+    await supabase.from("saved_moments").delete().eq("id", ev.dbId);
+  };
 
   useEffect(() => {
     async function load() {
@@ -75,6 +91,7 @@ export default function CalendarScreen() {
           const dayIndex = sched ? sched.getDay() : 0;
           return {
             id:           `bf-${m.id}`,
+            dbId:         m.id,
             title:        m.title,
             time:         sched ? fmtTime(m.scheduled_at) : "",
             duration:     m.duration_min ? `${m.duration_min} דק'` : "20 דק'",
@@ -120,6 +137,7 @@ export default function CalendarScreen() {
                 const durationMin = Math.round(durationMs / 60000);
                 return {
                   id:       `gc-${e.id}`,
+                  dbId:     null,
                   title:    e.summary ?? "",
                   time:     allDay ? "" : (sched ? fmtTime(startISO) : ""),
                   duration: allDay ? "כל היום" : (durationMin > 0 ? `${durationMin} דק'` : ""),
@@ -351,19 +369,46 @@ export default function CalendarScreen() {
                     </div>
 
                     {/* Time */}
-                    {ev.time && (
-                      <p
-                        className="text-sm font-black flex-shrink-0"
-                        style={{ color: ev.source === "bondflow" ? "oklch(0.55 0.14 140)" : "oklch(0.52 0.14 255)" }}
-                      >
-                        {ev.time}
-                      </p>
-                    )}
-                    {!ev.time && (
-                      <span className="text-xs font-semibold flex-shrink-0" style={{ color: "oklch(0.6 0.03 255)" }}>
-                        כל היום
-                      </span>
-                    )}
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      {ev.time && (
+                        <p
+                          className="text-sm font-black"
+                          style={{ color: ev.source === "bondflow" ? "oklch(0.55 0.14 140)" : "oklch(0.52 0.14 255)" }}
+                        >
+                          {ev.time}
+                        </p>
+                      )}
+                      {!ev.time && (
+                        <span className="text-xs font-semibold" style={{ color: "oklch(0.6 0.03 255)" }}>
+                          כל היום
+                        </span>
+                      )}
+                      {ev.source === "bondflow" && (
+                        <div className="flex gap-1">
+                          {!ev.completed && (
+                            <button
+                              onClick={() => handleComplete(ev)}
+                              title="סמן כבוצע"
+                              className="w-6 h-6 rounded-lg flex items-center justify-center transition-colors hover:bg-[oklch(0.88_0.08_140_/_0.2)]"
+                              style={{ color: "oklch(0.55 0.14 140)" }}
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {ev.completed && (
+                            <span className="text-xs font-bold" style={{ color: "oklch(0.55 0.14 140)" }}>✓ בוצע</span>
+                          )}
+                          <button
+                            onClick={() => handleDelete(ev)}
+                            title="הסר"
+                            className="w-6 h-6 rounded-lg flex items-center justify-center transition-colors hover:bg-[oklch(0.95_0.04_25)]"
+                            style={{ color: "oklch(0.65 0.10 25)" }}
+                          >
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

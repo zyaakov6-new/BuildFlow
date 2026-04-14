@@ -33,7 +33,7 @@ interface Suggestion {
 }
 
 // ---- Warm Score Ring ----
-function ScoreRing({ score, delta }: { score: number; delta: number }) {
+function ScoreRing({ score, delta, activeDays }: { score: number; delta: number; activeDays: number[] }) {
   const r = 46;
   const circ = 2 * Math.PI * r;
   const filled = (score / 100) * circ;
@@ -91,25 +91,28 @@ function ScoreRing({ score, delta }: { score: number; delta: number }) {
           >
             <TrendingUp className="w-3 h-3" style={{ color: "oklch(0.52 0.14 140)" }} />
             <span className="text-xs font-bold" style={{ color: "oklch(0.52 0.14 140)" }}>
-              +{delta} מהשבוע שעבר
+              {delta >= 0 ? "+" : ""}{delta} מהשבוע שעבר
             </span>
           </div>
         </div>
       </div>
 
-      {/* Weekly dots */}
+      {/* Weekly dots — real active days */}
       <div className="mt-4 flex items-center justify-between">
         <span className="text-xs" style={{ color: "oklch(0.68 0.03 255)" }}>ראשון</span>
         <div className="flex gap-1.5 items-center">
-          {[true, true, false, true, false, false, false].map((done, i) => (
-            <div
-              key={i}
-              className="w-6 h-6 rounded-full flex items-center justify-center"
-              style={{ background: done ? "oklch(0.65 0.14 140)" : "oklch(0.92 0.02 85)" }}
-            >
-              {done && <CheckCircle2 className="w-3.5 h-3.5 text-white" strokeWidth={2.5} />}
-            </div>
-          ))}
+          {[0,1,2,3,4,5,6].map((dayIdx) => {
+            const done = activeDays.includes(dayIdx);
+            return (
+              <div
+                key={dayIdx}
+                className="w-6 h-6 rounded-full flex items-center justify-center"
+                style={{ background: done ? "oklch(0.65 0.14 140)" : "oklch(0.92 0.02 85)" }}
+              >
+                {done && <CheckCircle2 className="w-3.5 h-3.5 text-white" strokeWidth={2.5} />}
+              </div>
+            );
+          })}
         </div>
         <span className="text-xs" style={{ color: "oklch(0.68 0.03 255)" }}>שבת</span>
       </div>
@@ -365,6 +368,7 @@ export default function Dashboard() {
   const [scoreDelta, setScoreDelta] = useState<number>(0);
   const [momentsCount, setMomentsCount] = useState<number>(0);
   const [loadingData, setLoadingData] = useState(true);
+  const [weekActiveDays, setWeekActiveDays] = useState<number[]>([]);
 
   // ---- Load real data on mount ----
   useEffect(() => {
@@ -403,6 +407,17 @@ export default function Dashboard() {
           .select("id, name, age_group, avatar_color")
           .eq("user_id", user.id);
         const childMap = new Map((children ?? []).map((c) => [c.id, c]));
+
+        // 4a. Active days this week (for score ring dots)
+        const weekStart = new Date(); weekStart.setDate(new Date().getDate() - new Date().getDay()); weekStart.setHours(0,0,0,0);
+        const weekEnd   = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 7);
+        const { data: weekMoments } = await supabase
+          .from("saved_moments")
+          .select("scheduled_at")
+          .eq("user_id", user.id)
+          .gte("scheduled_at", weekStart.toISOString())
+          .lt("scheduled_at", weekEnd.toISOString());
+        setWeekActiveDays([...new Set((weekMoments ?? []).map((m) => new Date(m.scheduled_at!).getDay()))]);
 
         // 4. Weekly score
         const { data: scores } = await supabase
@@ -635,7 +650,7 @@ export default function Dashboard() {
 
       {/* ---- Screen routing ---- */}
       {activeTab === "suggestions" && <SuggestionsScreen />}
-      {activeTab === "calendar"    && <CalendarScreen />}
+      {activeTab === "calendar"    && <CalendarScreen onNavigateToSuggestions={() => setActiveTab("suggestions")} />}
       {activeTab === "reports"     && <ReportsScreen />}
       {activeTab === "profile"     && <SettingsScreen />}
 
@@ -670,7 +685,7 @@ export default function Dashboard() {
             {/* Main column */}
             <div className="lg:col-span-2 flex flex-col gap-5">
               {/* Score ring - now warm */}
-              <ScoreRing score={weekScore} delta={scoreDelta} />
+              <ScoreRing score={weekScore} delta={scoreDelta} activeDays={weekActiveDays} />
 
               {/* Quick stats */}
               <div className="grid grid-cols-3 gap-3">
