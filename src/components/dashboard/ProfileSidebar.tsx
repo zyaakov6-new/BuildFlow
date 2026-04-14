@@ -487,7 +487,7 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
                     className="mt-4 w-full rounded-xl py-2 text-xs font-black text-white gradient-cta disabled:opacity-60 active:scale-[0.98] transition-all"
                     style={{ boxShadow: "0 4px 12px oklch(0.65 0.14 140 / 0.3)" }}
                   >
-                    {upgradingPlan ? "מעביר לתשלום..." : "שדרג לפרימיום - ₪49/חודש"}
+                    {upgradingPlan ? "מעביר לתשלום..." : "שדרג לפרימיום - ₪39/חודש"}
                   </button>
                 ) : (
                   <button
