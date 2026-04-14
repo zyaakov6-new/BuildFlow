@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import {
   Sparkles, Plus, Trash2, ChevronLeft,
@@ -786,11 +787,12 @@ function rankActivities(children: Child[]): ActivitySuggestion[] {
 }
 
 function FirstWinScreen({
-  data, onBack, onFinish,
+  data, onBack, onFinish, isFinishing = false,
 }: {
   data: FormData;
   onBack: () => void;
   onFinish: () => void;
+  isFinishing?: boolean;
 }) {
   const pool = rankActivities(data.children);
   const [index, setIndex] = useState(0);
@@ -981,7 +983,11 @@ function FirstWinScreen({
         </div>
 
         {/* Final CTA */}
-        <PrimaryButton label="סיום והתחל להשתמש ב-BondFlow" onClick={onFinish} />
+        <PrimaryButton
+          label={isFinishing ? "שומר..." : "סיום והתחל להשתמש ב-BondFlow"}
+          onClick={onFinish}
+          disabled={isFinishing}
+        />
       </div>
     </div>
   );
@@ -993,6 +999,7 @@ function FirstWinScreen({
 export default function OnboardingFlow() {
   const router = useRouter();
   const [step, setStep] = useState<StepNum>(1);
+  const [saving, setSaving] = useState(false);
   const [data, setData] = useState<FormData>({
     children: [{ id: 1, name: "", ageGroup: "", interests: [] }],
     calendarConnected: null,
@@ -1005,6 +1012,48 @@ export default function OnboardingFlow() {
 
   const retreat = () => {
     if (step > 1) setStep((s) => (s - 1) as StepNum);
+  };
+
+  const handleFinish = async () => {
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        // Upsert onboarding record
+        await supabase.from("onboarding").upsert({
+          user_id: user.id,
+          completed: true,
+          calendar_connected: data.calendarConnected,
+          completed_at: new Date().toISOString(),
+        });
+
+        // Insert children (skip empty names)
+        const validChildren = data.children.filter((c) => c.name.trim().length > 0);
+        if (validChildren.length > 0) {
+          const CHILD_COLOR_ACCENTS = [
+            "oklch(0.72 0.18 42)",
+            "oklch(0.58 0.18 280)",
+            "oklch(0.55 0.14 140)",
+          ];
+          await supabase.from("children").insert(
+            validChildren.map((c, idx) => ({
+              user_id: user.id,
+              name: c.name.trim(),
+              age_group: c.ageGroup,
+              interests: c.interests,
+              avatar_color: CHILD_COLOR_ACCENTS[idx % CHILD_COLOR_ACCENTS.length],
+            }))
+          );
+        }
+      }
+    } catch (e) {
+      console.error("Failed to save onboarding data:", e);
+    } finally {
+      setSaving(false);
+      router.push("/dashboard");
+    }
   };
 
   if (step === 1)
@@ -1035,7 +1084,8 @@ export default function OnboardingFlow() {
     <FirstWinScreen
       data={data}
       onBack={retreat}
-      onFinish={() => router.push("/dashboard")}
+      onFinish={handleFinish}
+      isFinishing={saving}
     />
   );
 }

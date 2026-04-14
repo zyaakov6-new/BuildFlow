@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Eye, EyeOff, ArrowLeft, Mail, Lock, User, Send, CheckCircle2, LogIn, UserPlus } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 type Mode = "signin" | "signup" | "magic";
 
@@ -13,6 +14,7 @@ export default function AuthForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [magicSent, setMagicSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [form, setForm] = useState({ name: "", email: "", password: "" });
 
@@ -23,19 +25,70 @@ export default function AuthForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // Simulate async auth - replace with real Supabase/NextAuth call
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    if (mode === "magic") {
-      setMagicSent(true);
-      return;
-    }
-    // After successful auth, go to onboarding for new users or dashboard
-    if (mode === "signup") {
-      router.push("/onboarding");
-    } else {
+    setError(null);
+    const supabase = createClient();
+
+    try {
+      if (mode === "magic") {
+        const { error } = await supabase.auth.signInWithOtp({
+          email: form.email,
+          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        });
+        if (error) throw error;
+        setMagicSent(true);
+        return;
+      }
+
+      if (mode === "signup") {
+        const { error } = await supabase.auth.signUp({
+          email: form.email,
+          password: form.password,
+          options: {
+            data: { full_name: form.name },
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          },
+        });
+        if (error) throw error;
+        setMagicSent(true); // reuse the "check email" state
+        return;
+      }
+
+      // sign in
+      const { error } = await supabase.auth.signInWithPassword({
+        email: form.email,
+        password: form.password,
+      });
+      if (error) throw error;
+
+      // Check if onboarding is completed
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: onb } = await supabase
+          .from("onboarding")
+          .select("completed")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (!onb?.completed) {
+          router.push("/onboarding");
+          return;
+        }
+      }
       router.push("/dashboard");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "שגיאה בכניסה. נסה שוב.");
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleOAuth = async (provider: "google" | "apple") => {
+    setError(null);
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (error) setError(error.message);
   };
 
   const inputClass = `
@@ -70,7 +123,9 @@ export default function AuthForm() {
               <div className="w-14 h-14 rounded-2xl mx-auto mb-5 flex items-center justify-center" style={{ background: "oklch(0.88 0.08 140 / 0.2)" }}>
                 <Send className="w-6 h-6" style={{ color: "oklch(0.65 0.14 140)" }} />
               </div>
-              <h2 className="text-2xl font-black mb-3" style={{ color: "oklch(0.2 0.03 255)" }}>בדוק את האימייל שלך</h2>
+              <h2 className="text-2xl font-black mb-3" style={{ color: "oklch(0.2 0.03 255)" }}>
+                {mode === "signup" ? "אשר את האימייל שלך" : "בדוק את האימייל שלך"}
+              </h2>
               <p className="text-sm leading-relaxed mb-6" style={{ color: "oklch(0.5 0.03 255)" }}>
                 שלחנו לך קישור כניסה ל-<span className="font-bold" style={{ color: "oklch(0.45 0.14 140)" }}>{form.email}</span>.
                 <br />הקישור תקף ל-10 דקות.
@@ -122,6 +177,7 @@ export default function AuthForm() {
               {/* Social buttons */}
               <div className="flex flex-col gap-3 mb-6">
                 <button
+                  onClick={() => handleOAuth("google")}
                   className="flex items-center justify-center gap-3 w-full rounded-2xl py-3.5 text-sm font-semibold border-2 transition-all hover:border-[oklch(0.7_0.05_255)] active:scale-[0.98]"
                   style={{ borderColor: "oklch(0.88 0.02 85)", color: "oklch(0.3 0.03 255)" }}
                 >
@@ -134,6 +190,7 @@ export default function AuthForm() {
                   המשך עם Google
                 </button>
                 <button
+                  onClick={() => handleOAuth("apple")}
                   className="flex items-center justify-center gap-3 w-full rounded-2xl py-3.5 text-sm font-semibold border-2 transition-all hover:border-[oklch(0.7_0.05_255)] active:scale-[0.98]"
                   style={{ borderColor: "oklch(0.88 0.02 85)", color: "oklch(0.3 0.03 255)" }}
                 >
@@ -220,6 +277,14 @@ export default function AuthForm() {
                   </div>
                 )}
 
+                {error && (
+                  <div
+                    className="rounded-xl px-4 py-3 text-sm text-right"
+                    style={{ background: "oklch(0.95 0.04 25 / 0.3)", color: "oklch(0.45 0.15 25)" }}
+                  >
+                    {error}
+                  </div>
+                )}
                 <Button
                   type="submit"
                   disabled={loading}

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 import {
   Home, Calendar, Lightbulb, User, BarChart2,
   Bell, ChevronLeft, Clock, Blocks, BookOpen,
@@ -16,7 +17,7 @@ import SettingsScreen from "./SettingsScreen";
 type Tab = "home" | "suggestions" | "calendar" | "reports" | "profile";
 
 interface Suggestion {
-  id: number;
+  id: string;
   title: string;
   child: string;
   childInitial: string;
@@ -160,7 +161,7 @@ function UpcomingCard({
 function HomeSuggestionCard({
   s, onBlock, onDismiss,
 }: {
-  s: Suggestion; onBlock: (id: number) => void; onDismiss: (id: number) => void;
+  s: Suggestion; onBlock: (id: string) => void; onDismiss: (id: string) => void;
 }) {
   const Icon = s.IconComp;
   return (
@@ -286,33 +287,117 @@ function BottomNav({ active, setActive }: { active: Tab; setActive: (t: Tab) => 
   );
 }
 
-// ---- Initial data ----
-const INITIAL_SUGGESTIONS: Suggestion[] = [
-  {
-    id: 1, title: "בניית לגו - רכבת הרים",
-    child: "יואב", childInitial: "י", childColor: "oklch(0.72 0.18 42)", childAge: 6,
-    timeSlot: "שלישי 17:30", duration: "25 דק'", prepLevel: "אפס הכנה",
-    IconComp: Blocks, accentColor: "oklch(0.55 0.14 140)", bgColor: "oklch(0.88 0.08 140 / 0.15)",
-  },
-  {
-    id: 2, title: "קריאה ביחד - ספר חדש",
-    child: "נועה", childInitial: "נ", childColor: "oklch(0.60 0.18 280)", childAge: 9,
-    timeSlot: "חמישי 20:00", duration: "20 דק'", prepLevel: "אפס הכנה",
-    IconComp: BookOpen, accentColor: "oklch(0.55 0.18 255)", bgColor: "oklch(0.90 0.06 255 / 0.12)",
-  },
-  {
-    id: 3, title: "ציור חופשי ביחד",
-    child: "יואב", childInitial: "י", childColor: "oklch(0.72 0.18 42)", childAge: 6,
-    timeSlot: "שישי 9:00", duration: "30 דק'", prepLevel: "הכנה קלה",
-    IconComp: Pencil, accentColor: "oklch(0.55 0.15 42)", bgColor: "oklch(0.92 0.06 60 / 0.15)",
-  },
-];
+// ---- Icon mapping by category ----
+function iconForCategory(category: string | null): React.ElementType {
+  switch (category) {
+    case "lego": return Blocks;
+    case "drawing": return Pencil;
+    case "reading": return BookOpen;
+    default: return Sparkles;
+  }
+}
+
+// ---- Prep label from minutes ----
+function prepLabel(mins: number | null): "אפס הכנה" | "הכנה קלה" | "קצת הכנה" {
+  if (!mins || mins === 0) return "אפס הכנה";
+  if (mins <= 10) return "הכנה קלה";
+  return "קצת הכנה";
+}
 
 // ---- Main Dashboard ----
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>("home");
-  const [suggestions, setSuggestions] = useState<Suggestion[]>(INITIAL_SUGGESTIONS);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [userName, setUserName] = useState<string>("...");
+  const [userInitial, setUserInitial] = useState<string>("?");
+  const [weekScore, setWeekScore] = useState<number>(72);
+  const [scoreDelta, setScoreDelta] = useState<number>(8);
+  const [momentsCount, setMomentsCount] = useState<number>(0);
+  const [loadingData, setLoadingData] = useState(true);
+
+  // ---- Load real data on mount ----
+  useEffect(() => {
+    async function load() {
+      try {
+        const supabase = createClient();
+
+        // 1. User profile
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("full_name")
+            .eq("id", user.id)
+            .maybeSingle();
+          const name = profile?.full_name ?? user.email?.split("@")[0] ?? "משתמש";
+          setUserName(name);
+          setUserInitial(name[0] ?? "?");
+        }
+
+        // 2. Weekly score
+        const { data: scores } = await supabase
+          .from("weekly_scores")
+          .select("score, moments_count")
+          .eq("user_id", user?.id ?? "")
+          .order("created_at", { ascending: false })
+          .limit(2);
+        if (scores && scores.length > 0) {
+          setWeekScore(scores[0].score ?? 72);
+          setMomentsCount(scores[0].moments_count ?? 0);
+          if (scores.length > 1) {
+            setScoreDelta((scores[0].score ?? 72) - (scores[1].score ?? 64));
+          }
+        }
+
+        // 3. Suggestions from API
+        const res = await fetch("/api/suggestions");
+        if (res.ok) {
+          const json = await res.json();
+          const raw = json.suggestions ?? [];
+
+          // Fetch children to get names/colors
+          const { data: children } = await supabase
+            .from("children")
+            .select("id, name, age_group, avatar_color")
+            .eq("user_id", user?.id ?? "");
+          const childMap = new Map((children ?? []).map((c) => [c.id, c]));
+
+          const mapped: Suggestion[] = raw.map((s: {
+            id: string; title: string; child_id?: string; duration_min?: number;
+            time_slot?: string; day_label?: string; prep_min?: number;
+            accent_color?: string; bg_color?: string; category?: string;
+            status?: string;
+          }) => {
+            const child = s.child_id ? childMap.get(s.child_id) : null;
+            const childName = child?.name ?? "הילד שלך";
+            return {
+              id: s.id,
+              title: s.title,
+              child: childName,
+              childInitial: childName[0] ?? "?",
+              childColor: child?.avatar_color ?? "oklch(0.72 0.18 42)",
+              childAge: 0,
+              timeSlot: `${s.day_label ?? ""} ${s.time_slot ?? ""}`.trim(),
+              duration: s.duration_min ? `${s.duration_min} דק'` : "20 דק'",
+              prepLevel: prepLabel(s.prep_min ?? null),
+              IconComp: iconForCategory(s.category ?? null),
+              accentColor: s.accent_color ?? "oklch(0.55 0.14 140)",
+              bgColor: s.bg_color ?? "oklch(0.88 0.08 140 / 0.15)",
+              blocked: s.status === "saved",
+            };
+          });
+          setSuggestions(mapped);
+          if (mapped.length > 0) setMomentsCount(mapped.filter((m) => m.blocked).length);
+        }
+      } catch (e) {
+        console.error("Dashboard load error:", e);
+      } finally {
+        setLoadingData(false);
+      }
+    }
+    load();
+  }, []);
 
   const handleTabClick = (id: Tab) => {
     if (id === "profile") {
@@ -322,11 +407,25 @@ export default function Dashboard() {
     }
   };
 
-  const handleBlock = (id: number) =>
+  const handleBlock = async (id: string) => {
     setSuggestions((prev) => prev.map((s) => (s.id === id ? { ...s, blocked: true } : s)));
+    try {
+      const supabase = createClient();
+      await supabase.from("suggestions").update({ status: "saved" }).eq("id", id);
+    } catch (e) {
+      console.error("Failed to save suggestion:", e);
+    }
+  };
 
-  const handleDismiss = (id: number) =>
+  const handleDismiss = async (id: string) => {
     setSuggestions((prev) => prev.filter((s) => s.id !== id));
+    try {
+      const supabase = createClient();
+      await supabase.from("suggestions").update({ status: "dismissed" }).eq("id", id);
+    } catch (e) {
+      console.error("Failed to dismiss suggestion:", e);
+    }
+  };
 
   const activeSuggestions = suggestions.filter((s) => !s.blocked);
   const firstSuggestion = activeSuggestions[0];
@@ -379,14 +478,14 @@ export default function Dashboard() {
         <div className="flex items-center gap-3 flex-shrink-0">
           <div className="text-right hidden sm:block">
             <p className="text-xs font-medium" style={{ color: "oklch(0.6 0.03 255)" }}>שלום,</p>
-            <p className="text-sm font-black leading-tight" style={{ color: "oklch(0.2 0.03 255)" }}>מיכל</p>
+            <p className="text-sm font-black leading-tight" style={{ color: "oklch(0.2 0.03 255)" }}>{userName}</p>
           </div>
           <button
             onClick={() => setSidebarOpen(true)}
             className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black text-white flex-shrink-0 transition-opacity hover:opacity-85 active:scale-95"
             style={{ background: "oklch(0.65 0.14 140)" }}
           >
-            מ
+            {userInitial}
           </button>
         </div>
       </div>
@@ -404,10 +503,10 @@ export default function Dashboard() {
           {/* Welcome strip */}
           <div className="text-right mb-5">
             <p className="text-2xl font-black" style={{ color: "oklch(0.18 0.03 255)" }}>
-              בוקר טוב, מיכל
+              בוקר טוב, {loadingData ? "..." : userName}
             </p>
             <p className="text-sm mt-1" style={{ color: "oklch(0.55 0.03 255)" }}>
-              השבוע יש לך 3 רגעים שמחכים לך.
+              {loadingData ? "טוען..." : `השבוע יש לך ${activeSuggestions.length} רגעים שמחכים לך.`}
             </p>
           </div>
 
@@ -416,14 +515,14 @@ export default function Dashboard() {
             {/* Main column */}
             <div className="lg:col-span-2 flex flex-col gap-5">
               {/* Score ring - now warm */}
-              <ScoreRing score={72} delta={8} />
+              <ScoreRing score={weekScore} delta={scoreDelta} />
 
               {/* Quick stats */}
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { label: "רגעים", value: "3", sub: "מתוך 5 יעד", color: "oklch(0.58 0.14 140)" },
-                  { label: "שעות חיבור", value: "1.5", sub: "השבוע", color: "oklch(0.62 0.18 42)" },
-                  { label: "רצף", value: "4", sub: "שבועות", color: "oklch(0.52 0.18 255)" },
+                  { label: "רגעים", value: String(momentsCount), sub: "מתוך 5 יעד", color: "oklch(0.58 0.14 140)" },
+                  { label: "הצעות", value: String(activeSuggestions.length), sub: "השבוע", color: "oklch(0.62 0.18 42)" },
+                  { label: "ציון", value: String(weekScore), sub: "/100", color: "oklch(0.52 0.18 255)" },
                 ].map((stat, i) => (
                   <div
                     key={i}
