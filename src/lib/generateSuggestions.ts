@@ -89,51 +89,6 @@ child_index הוא אינדקס הילד (0 עבור ילד ראשון, 1 עבו
       },
     ],
     messages: [{ role: "user", content: userPrompt }],
-    output_config: {
-      format: {
-        type: "json_schema",
-        schema: {
-          type: "object",
-          properties: {
-            suggestions: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  title: { type: "string" },
-                  description: { type: "string" },
-                  duration_min: { type: "integer" },
-                  prep_min: { type: "integer" },
-                  time_slot: { type: "string" },
-                  day_label: { type: "string" },
-                  category: { type: "string" },
-                  activity_type: { type: "string" },
-                  accent_color: { type: "string" },
-                  bg_color: { type: "string" },
-                  child_index: { type: "integer" },
-                },
-                required: [
-                  "title",
-                  "description",
-                  "duration_min",
-                  "prep_min",
-                  "time_slot",
-                  "day_label",
-                  "category",
-                  "activity_type",
-                  "accent_color",
-                  "bg_color",
-                  "child_index",
-                ],
-                additionalProperties: false,
-              },
-            },
-          },
-          required: ["suggestions"],
-          additionalProperties: false,
-        },
-      },
-    },
   });
 
   const textBlock = response.content.find((b) => b.type === "text");
@@ -141,6 +96,23 @@ child_index הוא אינדקס הילד (0 עבור ילד ראשון, 1 עבו
     throw new Error("No text response from Claude");
   }
 
-  const parsed = JSON.parse(textBlock.text) as { suggestions: GeneratedSuggestion[] };
-  return parsed.suggestions;
+  // Extract JSON — Claude may wrap it in ```json ... ``` fences or add prose
+  let raw = textBlock.text.trim();
+  const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (fenceMatch) raw = fenceMatch[1].trim();
+
+  // Find the first [ or { in case there is any leading prose
+  const jsonStart = raw.search(/[\[{]/);
+  if (jsonStart > 0) raw = raw.slice(jsonStart);
+
+  const parsed = JSON.parse(raw) as
+    | { suggestions: GeneratedSuggestion[] }
+    | GeneratedSuggestion[];
+  const suggestions = Array.isArray(parsed) ? parsed : parsed.suggestions;
+
+  if (!Array.isArray(suggestions) || suggestions.length === 0) {
+    throw new Error("Claude returned empty suggestions array");
+  }
+
+  return suggestions;
 }
