@@ -9,6 +9,34 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { addToGoogleCalendar } from "@/lib/googleCalendar";
 
+const HEBREW_TO_DAY: Record<string, number> = {
+  "ראשון": 0, "שני": 1, "שלישי": 2, "רביעי": 3, "חמישי": 4, "שישי": 5, "שבת": 6,
+};
+
+function getScheduledDate(dayLabel: string | null, timeSlot: string | null): Date {
+  const [hStr, mStr] = (timeSlot ?? "17:00").split(":");
+  const hours = parseInt(hStr) || 17;
+  const mins  = parseInt(mStr) || 0;
+  const now = new Date();
+  const result = new Date(now);
+  if (dayLabel && HEBREW_TO_DAY[dayLabel] !== undefined) {
+    const target = HEBREW_TO_DAY[dayLabel];
+    const current = now.getDay();
+    let diff = target - current;
+    if (diff < 0) diff += 7;
+    if (diff === 0) {
+      const candidate = new Date(now);
+      candidate.setHours(hours, mins, 0, 0);
+      if (candidate <= now) diff = 7;
+    }
+    result.setDate(now.getDate() + diff);
+  } else {
+    result.setDate(now.getDate() + 1);
+  }
+  result.setHours(hours, mins, 0, 0);
+  return result;
+}
+
 // ---- Types ----
 type PlaceFilter = "all" | "indoor" | "outdoor" | "car";
 
@@ -27,7 +55,9 @@ interface SuggestionItem {
   childName: string;
   childInitial: string;
   childColor: string;
-  timeSlot: string;
+  timeSlot: string;      // display string e.g. "שלישי 17:30"
+  dayLabel: string | null;  // raw Hebrew day for scheduling
+  rawTime: string | null;   // raw time "17:30" for scheduling
   duration: string;
   prepLevel: "אפס הכנה" | "הכנה קלה" | "קצת הכנה";
   place: "indoor" | "outdoor" | "car";
@@ -138,6 +168,8 @@ export default function SuggestionsScreen() {
               childInitial: child?.initial ?? childName[0] ?? "?",
               childColor: child?.color ?? CHILD_COLORS[0],
               timeSlot: `${s.day_label ?? ""} ${s.time_slot ?? ""}`.trim(),
+              dayLabel: s.day_label ?? null,
+              rawTime: s.time_slot ?? null,
               duration: s.duration_min ? `${s.duration_min} דק'` : "20 דק'",
               durationMin: s.duration_min ?? 30,
               prepLevel: prepLabel(s.prep_min ?? null),
@@ -169,10 +201,8 @@ export default function SuggestionsScreen() {
       // Mark suggestion saved
       await supabase.from("suggestions").update({ status: "saved" }).eq("id", item.id);
 
-      // Insert into saved_moments so Calendar tab shows it
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(17, 0, 0, 0);
+      // Schedule at the suggestion's actual day+time
+      const scheduledAt = getScheduledDate(item.dayLabel, item.rawTime);
 
       await supabase.from("saved_moments").insert({
         user_id: user.id,
@@ -180,7 +210,7 @@ export default function SuggestionsScreen() {
         child_id: item.childId,
         title: item.title,
         duration_min: item.durationMin,
-        scheduled_at: tomorrow.toISOString(),
+        scheduled_at: scheduledAt.toISOString(),
         completed: false,
       });
 
@@ -196,7 +226,7 @@ export default function SuggestionsScreen() {
           accessToken: calendarToken,
           title: item.title,
           durationMin: item.durationMin,
-          scheduledAt: tomorrow.toISOString(),
+          scheduledAt: scheduledAt.toISOString(),
         });
       }
     } catch (e) {

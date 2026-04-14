@@ -321,6 +321,39 @@ const HEBREW_DAYS_SHORT: Record<number, string> = {
   0: "ראשון", 1: "שני", 2: "שלישי", 3: "רביעי", 4: "חמישי", 5: "שישי", 6: "שבת",
 };
 
+const HEBREW_TO_DAY: Record<string, number> = {
+  "ראשון": 0, "שני": 1, "שלישי": 2, "רביעי": 3, "חמישי": 4, "שישי": 5, "שבת": 6,
+};
+
+/** Returns the next Date that matches dayLabel (Hebrew) + timeSlot ("HH:MM") */
+function getScheduledDate(dayLabel: string | null, timeSlot: string | null): Date {
+  const [hStr, mStr] = (timeSlot ?? "17:00").split(":");
+  const hours = parseInt(hStr) || 17;
+  const mins  = parseInt(mStr) || 0;
+
+  const now = new Date();
+  const result = new Date(now);
+
+  if (dayLabel && HEBREW_TO_DAY[dayLabel] !== undefined) {
+    const target  = HEBREW_TO_DAY[dayLabel];
+    const current = now.getDay();
+    let diff = target - current;
+    if (diff < 0) diff += 7;           // already past this week → next week
+    if (diff === 0) {
+      // same weekday — check if the time slot is still ahead today
+      const candidate = new Date(now);
+      candidate.setHours(hours, mins, 0, 0);
+      if (candidate <= now) diff = 7;  // time passed → schedule next week
+    }
+    result.setDate(now.getDate() + diff);
+  } else {
+    result.setDate(now.getDate() + 1); // fallback: tomorrow
+  }
+
+  result.setHours(hours, mins, 0, 0);
+  return result;
+}
+
 // ---- Main Dashboard ----
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>("home");
@@ -362,7 +395,6 @@ export default function Dashboard() {
             id: user.id,
             google_calendar_token: session.provider_token,
             google_calendar_refresh_token: session.provider_refresh_token ?? null,
-            updated_at: new Date().toISOString(),
           }, { onConflict: "id" });
         }
 
@@ -492,10 +524,8 @@ export default function Dashboard() {
 
       if (!suggestion) return;
 
-      // 2. Insert into saved_moments so the Calendar tab shows it
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(17, 0, 0, 0);
+      // 2. Schedule at the suggestion's actual day+time, not "tomorrow 17:00"
+      const scheduledAt = getScheduledDate(suggestion.day_label, suggestion.time_slot);
 
       await supabase.from("saved_moments").insert({
         user_id: user.id,
@@ -503,12 +533,11 @@ export default function Dashboard() {
         child_id: suggestion.child_id ?? null,
         title: suggestion.title,
         duration_min: suggestion.duration_min ?? 30,
-        scheduled_at: tomorrow.toISOString(),
+        scheduled_at: scheduledAt.toISOString(),
         completed: false,
       });
 
-      // 3. Push to Google Calendar
-      // Use session provider_token first (freshest), then fall back to stored token
+      // 3. Push to Google Calendar — session token first (no updated_at bug), then DB fallback
       const { data: { session } } = await supabase.auth.getSession();
       const calendarToken = session?.provider_token ?? await (async () => {
         const { data: p } = await supabase.from("profiles").select("google_calendar_token").eq("id", user.id).maybeSingle();
@@ -520,7 +549,7 @@ export default function Dashboard() {
           accessToken: calendarToken,
           title: suggestion.title,
           durationMin: suggestion.duration_min,
-          scheduledAt: tomorrow.toISOString(),
+          scheduledAt: scheduledAt.toISOString(),
         });
       }
     } catch (e) {

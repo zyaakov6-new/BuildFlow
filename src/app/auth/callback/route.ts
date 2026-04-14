@@ -39,7 +39,6 @@ export async function GET(request: Request) {
           id: session.user.id,
           google_calendar_token: session.provider_token,
           google_calendar_refresh_token: session.provider_refresh_token ?? null,
-          updated_at: new Date().toISOString(),
         }, { onConflict: 'id' })
       }
 
