@@ -463,7 +463,7 @@ function scoreTemplate(
   return s;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -472,17 +472,30 @@ export async function GET() {
   }
 
   const weekNumber = getISOWeekNumber(new Date());
+  const force = new URL(request.url).searchParams.get("force") === "true";
 
-  // Check for existing suggestions this week
-  const { data: existing } = await supabase
-    .from("suggestions")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("week_number", weekNumber)
-    .neq("status", "dismissed");
+  // On force-refresh: wipe all non-saved suggestions for this week so we regenerate
+  if (force) {
+    await supabase
+      .from("suggestions")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("week_number", weekNumber)
+      .neq("status", "saved");
+  }
 
-  if (existing && existing.length > 0) {
-    return Response.json({ suggestions: existing });
+  // Check for existing suggestions this week (skip when force)
+  if (!force) {
+    const { data: existing } = await supabase
+      .from("suggestions")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("week_number", weekNumber)
+      .neq("status", "dismissed");
+
+    if (existing && existing.length > 0) {
+      return Response.json({ suggestions: existing });
+    }
   }
 
   // Fetch the user's children
@@ -557,10 +570,9 @@ export async function GET() {
   } catch (err) {
     console.error("AI generation failed, falling back to templates:", err);
 
-    // Fallback: use template system
+    // Fallback: use template system — distribute round-robin across all children
     const allInterests = children.flatMap((c) => c.interests ?? []);
     const allAgeGroups = children.map((c) => c.age_group).filter(Boolean);
-    const firstChildId = children[0].id;
 
     const ranked = [...TEMPLATES]
       .map((t) => ({ t, score: scoreTemplate(t, allInterests, allAgeGroups, currentSeason()) }))
@@ -568,9 +580,9 @@ export async function GET() {
       .slice(0, 6)
       .map(({ t }) => t);
 
-    toInsert = ranked.map((t) => ({
+    toInsert = ranked.map((t, i) => ({
       user_id: user.id,
-      child_id: firstChildId,
+      child_id: children[i % children.length].id, // round-robin across children
       title: t.title,
       description: t.description,
       duration_min: t.duration_min,

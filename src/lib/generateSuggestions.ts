@@ -56,7 +56,7 @@ export async function generateAISuggestions(
   const childrenDesc = children
     .map(
       (c, i) =>
-        `ילד ${i + 1}: שם: ${c.name}, גיל: ${c.age_group}, תחומי עניין: ${c.interests.length > 0 ? c.interests.join(", ") : "כללי"}`
+        `ילד ${i + 1}: שם: ${c.name}, גיל: ${c.age_group || "לא צוין"}, תחומי עניין: ${c.interests.length > 0 ? c.interests.join(", ") : "כללי"}`
     )
     .join("\n");
 

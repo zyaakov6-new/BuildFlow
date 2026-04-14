@@ -196,22 +196,58 @@ export default function SuggestionsScreen() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
+    setAllItems([]);
+    setDismissed(new Set());
+    setSaved(new Set());
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      // Reset all dismissed suggestions back to pending so they reappear
-      await supabase
-        .from("suggestions")
-        .update({ status: "pending" })
-        .eq("user_id", user.id)
-        .eq("status", "dismissed");
-      // Clear local state and trigger reload
-      setAllItems([]);
-      setDismissed(new Set());
-      setSaved(new Set());
-      toast.success("ההצעות אופסו, טוען מחדש...");
-      setLoadTrigger((t) => t + 1);
+      // force=true: server deletes stale pending suggestions and regenerates with AI
+      const res = await fetch("/api/suggestions?force=true");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      const raw: Array<{
+        id: string; title: string; child_id?: string; duration_min?: number;
+        time_slot?: string; day_label?: string; prep_min?: number;
+        accent_color?: string; bg_color?: string; category?: string;
+        activity_type?: string; status?: string;
+      }> = json.suggestions ?? [];
+
+      // We need the child map — borrow from existing children state
+      const childMap = new Map(children.map((c) => [c.id, c]));
+      const todayName = TODAY_HEBREW[new Date().getDay()];
+
+      const items: SuggestionItem[] = raw
+        .filter((s) => s.status !== "saved" && s.status !== "dismissed")
+        .map((s) => {
+          const child = s.child_id ? childMap.get(s.child_id) : null;
+          const childName = child?.name ?? "הילד שלך";
+          const placeType: "indoor" | "outdoor" | "car" =
+            s.activity_type === "outdoor" ? "outdoor"
+            : s.activity_type === "car" ? "car"
+            : "indoor";
+          return {
+            id: s.id,
+            title: s.title,
+            insight: `פעילות מותאמת ל${childName}`,
+            childId: s.child_id ?? null,
+            childName,
+            childInitial: child?.initial ?? childName[0] ?? "?",
+            childColor: child?.color ?? CHILD_COLORS[0],
+            timeSlot: `${s.day_label ?? ""} ${s.time_slot ?? ""}`.trim(),
+            dayLabel: s.day_label ?? null,
+            rawTime: s.time_slot ?? null,
+            duration: s.duration_min ? `${s.duration_min} דק'` : "20 דק'",
+            durationMin: s.duration_min ?? 30,
+            prepLevel: prepLabel(s.prep_min ?? null),
+            place: placeType,
+            isToday: s.day_label === todayName,
+            IconComp: iconForCategory(s.category ?? null),
+            accentColor: s.accent_color ?? "oklch(0.55 0.14 140)",
+            bgColor: s.bg_color ?? "oklch(0.88 0.08 140 / 0.15)",
+          };
+        });
+
+      setAllItems(items);
+      toast.success("הצעות חדשות נוצרו! ✨");
     } catch (e) {
       console.error("Refresh error:", e);
       toast.error("שגיאה בטעינה, נסה שוב");
