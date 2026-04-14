@@ -245,13 +245,19 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
   const handleUpgrade = async (plan: "premium" | "annual" = "premium") => {
     setUpgradingPlan(true);
     try {
-      const res  = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
+      const { openPaddleCheckout, PADDLE_PRICES } = await import("@/lib/paddle");
+      const priceId = PADDLE_PRICES[plan];
+      if (!priceId) { window.location.href = "/auth"; return; }
+
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      await openPaddleCheckout({
+        items: [{ priceId, quantity: 1 }],
+        customer: user?.email ? { email: user.email } : undefined,
+        customData: user ? { supabase_user_id: user.id, plan } : undefined,
+        settings: { displayMode: "overlay", theme: "light" },
       });
-      const data = await res.json() as { url?: string; error?: string };
-      if (data.url) window.location.href = data.url;
     } catch (e) {
       console.error("Upgrade error:", e);
     } finally {
@@ -260,16 +266,9 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
   };
 
   const handleManagePlan = async () => {
-    setUpgradingPlan(true);
-    try {
-      const res  = await fetch("/api/stripe/portal", { method: "POST" });
-      const data = await res.json() as { url?: string; error?: string };
-      if (data.url) window.location.href = data.url;
-    } catch (e) {
-      console.error("Portal error:", e);
-    } finally {
-      setUpgradingPlan(false);
-    }
+    // Paddle doesn't have a server-generated portal URL — open the Paddle customer portal
+    // via a new tab to paddle.com/account or re-trigger checkout to update payment method
+    window.open("https://customer.paddle.com/", "_blank");
   };
 
   const connectGoogleCalendar = async () => {

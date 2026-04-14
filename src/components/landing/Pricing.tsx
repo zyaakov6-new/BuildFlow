@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Check, Sparkles, Loader2 } from "lucide-react";
+import { openPaddleCheckout, PADDLE_PRICES } from "@/lib/paddle";
 
 const plans = [
   {
@@ -61,26 +62,22 @@ const plans = [
 export default function Pricing() {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
-  const handlePaidPlan = async (planId: string) => {
+  const handlePaidPlan = async (planId: "premium" | "annual") => {
+    const priceId = PADDLE_PRICES[planId];
+    if (!priceId) {
+      // Prices not configured yet — fall through to auth
+      window.location.href = `/auth?plan=${planId}`;
+      return;
+    }
     setLoadingPlan(planId);
     try {
-      const res  = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: planId }),
+      await openPaddleCheckout({
+        items: [{ priceId, quantity: 1 }],
+        settings: { displayMode: "overlay", theme: "light" },
       });
-
-      // If 401 the user isn't logged in — send them to auth
-      if (res.status === 401) {
-        window.location.href = `/auth?redirect=pricing&plan=${planId}`;
-        return;
-      }
-
-      const data = await res.json() as { url?: string };
-      if (data.url) window.location.href = data.url;
     } catch {
-      // fallback: go to auth
-      window.location.href = `/auth?redirect=pricing&plan=${planId}`;
+      // Paddle not available (e.g. SSR guard) — send to auth
+      window.location.href = `/auth?plan=${planId}`;
     } finally {
       setLoadingPlan(null);
     }
@@ -163,7 +160,7 @@ export default function Pricing() {
                 {plan.id === "free" ? (
                   <Link
                     href="/auth"
-                    className={`w-full rounded-2xl h-12 font-bold text-sm flex items-center justify-center gap-2 transition-opacity hover:opacity-90 border`}
+                    className="w-full rounded-2xl h-12 font-bold text-sm flex items-center justify-center gap-2 transition-opacity hover:opacity-90 border"
                     style={{ borderColor: "oklch(0.88 0.02 85)", color: "oklch(0.35 0.03 255)" }}
                   >
                     <Sparkles className="w-3.5 h-3.5" style={{ color: "oklch(0.65 0.14 140)" }} />
@@ -171,7 +168,7 @@ export default function Pricing() {
                   </Link>
                 ) : (
                   <button
-                    onClick={() => handlePaidPlan(plan.id)}
+                    onClick={() => handlePaidPlan(plan.id as "premium" | "annual")}
                     disabled={isBusy}
                     className={`w-full rounded-2xl h-12 font-bold text-sm flex items-center justify-center gap-2 text-white transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-70 ${plan.highlighted ? "gradient-cta" : ""}`}
                     style={
@@ -181,7 +178,7 @@ export default function Pricing() {
                     }
                   >
                     {isBusy
-                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> מעביר לתשלום...</>
+                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> רגע...</>
                       : <><Sparkles className="w-3.5 h-3.5" />{plan.cta}</>
                     }
                   </button>
@@ -214,7 +211,7 @@ export default function Pricing() {
         </div>
 
         <p className="text-center text-sm mt-8" style={{ color: "oklch(0.55 0.03 255)" }}>
-          כל התוכניות כוללות תמיכה בעברית ואנגלית - תואם GDPR - ביטול בכל זמן
+          כל התוכניות כוללות תמיכה בעברית ואנגלית · ביטול בכל זמן · מנוהל על ידי Paddle
         </p>
       </div>
     </section>
