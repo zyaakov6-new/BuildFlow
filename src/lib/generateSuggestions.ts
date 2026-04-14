@@ -92,7 +92,7 @@ child_index הוא אינדקס הילד (0 עבור ילד ראשון, 1 עבו
       "anthropic-beta": "prompt-caching-2024-07-31",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-6",
+      model: "claude-haiku-4-5",
       max_tokens: 2048,
       system: [
         {

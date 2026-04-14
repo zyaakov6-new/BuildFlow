@@ -2,8 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 import { generateAISuggestions } from "@/lib/generateSuggestions";
 
-// Edge runtime gives 30 s instead of the 10 s serverless limit on hobby plans
-export const runtime = "edge";
+// Haiku responds in 1-3 s — easily within the 10 s serverless limit
+// No edge runtime needed; maxDuration helps on Vercel Pro if present
+export const maxDuration = 60;
 
 type ChildRow = Database["public"]["Tables"]["children"]["Row"];
 
@@ -541,7 +542,13 @@ export async function GET(request: Request) {
     week_number: number;
   }>;
 
+  let aiError: string | null = null;
+
   try {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new Error("ANTHROPIC_API_KEY is not set in Vercel environment variables");
+    }
+
     const childProfiles = children.map((c) => ({
       id: c.id,
       name: c.name,
@@ -571,21 +578,25 @@ export async function GET(request: Request) {
       };
     });
   } catch (err) {
-    console.error("AI generation failed, falling back to templates:", err);
+    aiError = err instanceof Error ? err.message : String(err);
+    console.error("[BondFlow] AI generation failed:", aiError);
 
-    // Fallback: use template system — distribute round-robin across all children
+    // Fallback: template system — shuffle so repeat refreshes vary
     const allInterests = children.flatMap((c) => c.interests ?? []);
     const allAgeGroups = children.map((c) => c.age_group).filter(Boolean);
 
     const ranked = [...TEMPLATES]
-      .map((t) => ({ t, score: scoreTemplate(t, allInterests, allAgeGroups, currentSeason()) }))
+      .map((t) => ({
+        t,
+        score: scoreTemplate(t, allInterests, allAgeGroups, currentSeason()) + Math.random() * 0.8,
+      }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 6)
       .map(({ t }) => t);
 
     toInsert = ranked.map((t, i) => ({
       user_id: user.id,
-      child_id: children[i % children.length].id, // round-robin across children
+      child_id: children[i % children.length].id,
       title: t.title,
       description: t.description,
       duration_min: t.duration_min,
@@ -606,9 +617,15 @@ export async function GET(request: Request) {
     .insert(toInsert)
     .select();
 
-  if (error) {
-    return Response.json({ suggestions: toInsert });
-  }
+  const suggestions = error ? toInsert : inserted;
 
-  return Response.json({ suggestions: inserted });
+  // _debug is visible in browser DevTools Network tab — safe (no secrets)
+  return Response.json({
+    suggestions,
+    _debug: {
+      aiUsed: aiError === null,
+      aiError,
+      keyPresent: !!process.env.ANTHROPIC_API_KEY,
+    },
+  });
 }

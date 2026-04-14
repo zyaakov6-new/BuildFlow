@@ -146,6 +146,8 @@ export default function SuggestionsScreen() {
         const res = await fetch("/api/suggestions");
         if (!res.ok) return;
         const json = await res.json();
+        // Debug info visible in browser DevTools console
+        if (json._debug) console.log("[BondFlow AI]", json._debug);
         const raw: Array<{
           id: string; title: string; child_id?: string; duration_min?: number;
           time_slot?: string; day_label?: string; prep_min?: number;
