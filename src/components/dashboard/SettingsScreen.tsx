@@ -214,11 +214,38 @@ export default function SettingsScreen() {
   if (settingsLoading) {
     return (
       <div className="max-w-2xl mx-auto px-4 md:px-8 pt-6 flex flex-col gap-4 animate-pulse">
-        <div className="rounded-2xl h-10 w-48 ms-auto" style={{ background: "oklch(0.93 0.02 85)" }} />
-        <div className="rounded-2xl h-40 w-full" style={{ background: "oklch(0.93 0.02 85)" }} />
-        <div className="rounded-2xl h-10 w-48 ms-auto" style={{ background: "oklch(0.93 0.02 85)" }} />
-        <div className="rounded-2xl h-32 w-full" style={{ background: "oklch(0.93 0.02 85)" }} />
-        <div className="rounded-2xl h-32 w-full" style={{ background: "oklch(0.93 0.02 85)" }} />
+        {/* Section label */}
+        <div className="h-3 w-32 rounded ms-auto" style={{ background: "oklch(0.84 0.02 85)" }} />
+        {/* Time slot grid */}
+        <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: "white", border: "1px solid oklch(0.91 0.01 85)" }}>
+          <div className="flex flex-wrap gap-2 flex-row-reverse">
+            {[80, 65, 90, 75, 85, 70, 80].map((w, i) => (
+              <div key={i} className="h-14 rounded-2xl" style={{ width: w, background: "oklch(0.86 0.02 85)" }} />
+            ))}
+          </div>
+        </div>
+        {/* Section label */}
+        <div className="h-3 w-28 rounded ms-auto" style={{ background: "oklch(0.84 0.02 85)" }} />
+        {/* Toggle rows */}
+        <div className="rounded-2xl overflow-hidden" style={{ background: "white", border: "1px solid oklch(0.91 0.01 85)" }}>
+          {[1,2,3,4].map(i => (
+            <div key={i} className="flex items-center justify-between px-4 py-3.5 border-b" style={{ borderColor: "oklch(0.94 0.01 85)" }}>
+              <div className="h-6 w-10 rounded-full" style={{ background: "oklch(0.86 0.02 85)" }} />
+              <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-1 items-end">
+                  <div className="h-3.5 w-28 rounded" style={{ background: "oklch(0.86 0.02 85)" }} />
+                  <div className="h-2.5 w-20 rounded" style={{ background: "oklch(0.89 0.01 85)" }} />
+                </div>
+                <div className="w-8 h-8 rounded-xl" style={{ background: "oklch(0.86 0.02 85)" }} />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="rounded-2xl overflow-hidden" style={{ background: "white", border: "1px solid oklch(0.91 0.01 85)" }}>
+          {[1,2,3].map(i => (
+            <div key={i} className="h-14 border-b" style={{ borderColor: "oklch(0.94 0.01 85)" }} />
+          ))}
+        </div>
       </div>
     );
   }

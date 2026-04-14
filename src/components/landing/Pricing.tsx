@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Check, Sparkles, Loader2 } from "lucide-react";
 import { openPaddleCheckout, PADDLE_PRICES } from "@/lib/paddle";
+import { toast } from "sonner";
 
 const plans = [
   {
@@ -65,8 +66,7 @@ export default function Pricing() {
   const handlePaidPlan = async (planId: "premium" | "annual") => {
     const priceId = PADDLE_PRICES[planId];
     if (!priceId) {
-      // Prices not configured yet — fall through to auth
-      window.location.href = `/auth?plan=${planId}`;
+      toast.error("שגיאה בטעינת מערכת התשלום. נסה שוב בעוד רגע.");
       return;
     }
     setLoadingPlan(planId);
@@ -75,9 +75,9 @@ export default function Pricing() {
         items: [{ priceId, quantity: 1 }],
         settings: { displayMode: "overlay", theme: "light" },
       });
-    } catch {
-      // Paddle not available (e.g. SSR guard) — send to auth
-      window.location.href = `/auth?plan=${planId}`;
+    } catch (err) {
+      console.error("Paddle checkout error:", err);
+      toast.error("לא הצלחנו לפתוח את מסך התשלום. נסה שוב.");
     } finally {
       setLoadingPlan(null);
     }

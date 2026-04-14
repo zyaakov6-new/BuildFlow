@@ -247,7 +247,11 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
     try {
       const { openPaddleCheckout, PADDLE_PRICES } = await import("@/lib/paddle");
       const priceId = PADDLE_PRICES[plan];
-      if (!priceId) { window.location.href = "/auth"; return; }
+      if (!priceId) {
+        const { toast } = await import("sonner");
+        toast.error("שגיאה בטעינת מערכת התשלום. נסה שוב בעוד רגע.");
+        return;
+      }
 
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -260,6 +264,8 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
       });
     } catch (e) {
       console.error("Upgrade error:", e);
+      const { toast } = await import("sonner");
+      toast.error("לא הצלחנו לפתוח את מסך התשלום. נסה שוב.");
     } finally {
       setUpgradingPlan(false);
     }
@@ -337,11 +343,28 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
           {/* ── Loading skeleton ── */}
           {sidebarLoading && (
             <div className="flex flex-col gap-3 px-4 pt-4 animate-pulse">
-              <div className="rounded-2xl h-20 w-full" style={{ background: "oklch(0.93 0.02 85)" }} />
-              <div className="rounded-2xl h-12 w-full" style={{ background: "oklch(0.93 0.02 85)" }} />
-              <div className="rounded-2xl h-28 w-full" style={{ background: "oklch(0.93 0.02 85)" }} />
-              <div className="rounded-2xl h-24 w-full" style={{ background: "oklch(0.93 0.02 85)" }} />
-              <div className="rounded-2xl h-40 w-full" style={{ background: "oklch(0.93 0.02 85)" }} />
+              {/* Avatar card */}
+              <div className="rounded-2xl p-4 flex items-center gap-3 flex-row-reverse" style={{ background: "oklch(0.91 0.01 85)" }}>
+                <div className="w-12 h-12 rounded-2xl flex-shrink-0" style={{ background: "oklch(0.84 0.02 85)" }} />
+                <div className="flex-1 flex flex-col gap-2 items-end">
+                  <div className="h-4 w-28 rounded-lg" style={{ background: "oklch(0.84 0.02 85)" }} />
+                  <div className="h-3 w-20 rounded-lg" style={{ background: "oklch(0.87 0.02 85)" }} />
+                </div>
+              </div>
+              {/* Email row */}
+              <div className="rounded-2xl h-12" style={{ background: "oklch(0.91 0.01 85)" }} />
+              {/* Subscription card */}
+              <div className="rounded-2xl p-4 flex flex-col gap-2" style={{ background: "oklch(0.91 0.01 85)" }}>
+                <div className="h-4 w-24 rounded-lg ms-auto" style={{ background: "oklch(0.84 0.02 85)" }} />
+                {[1,2,3].map(i => <div key={i} className="h-3 w-full rounded-lg" style={{ background: "oklch(0.87 0.02 85)" }} />)}
+                <div className="h-9 rounded-xl mt-1" style={{ background: "oklch(0.80 0.04 140 / 0.3)" }} />
+              </div>
+              {/* Stats rows */}
+              <div className="rounded-2xl overflow-hidden" style={{ background: "oklch(0.91 0.01 85)" }}>
+                {[1,2,3].map(i => <div key={i} className="h-12 border-t" style={{ borderColor: "oklch(0.87 0.01 85)" }} />)}
+              </div>
+              {/* Children card */}
+              <div className="rounded-2xl h-24" style={{ background: "oklch(0.91 0.01 85)" }} />
             </div>
           )}
 

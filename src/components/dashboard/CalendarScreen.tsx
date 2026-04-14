@@ -391,10 +391,16 @@ export default function CalendarScreen({
       {/* Loading skeleton */}
       {loading && (
         <div className="flex flex-col gap-3 animate-pulse">
-          {[1,2,3].map(i => (
+          {/* day-label */}
+          <div className="h-5 w-36 rounded-lg ms-auto mb-1" style={{ background: "oklch(0.86 0.02 85)" }} />
+          {/* event rows */}
+          {[80, 64, 96, 72].map((h, i) => (
             <div key={i} className="flex items-start gap-3">
-              <div className="w-12 h-10 rounded-xl flex-shrink-0" style={{ background: "oklch(0.93 0.02 85)" }} />
-              <div className="flex-1 h-16 rounded-2xl" style={{ background: "oklch(0.93 0.02 85)" }} />
+              <div className="w-12 flex-shrink-0 flex flex-col gap-1 pt-2">
+                <div className="h-3 w-10 rounded" style={{ background: "oklch(0.86 0.02 85)" }} />
+                <div className="h-3 w-8 rounded" style={{ background: "oklch(0.89 0.02 85)" }} />
+              </div>
+              <div className="flex-1 rounded-2xl" style={{ height: h, background: i % 3 === 2 ? "oklch(0.90 0.04 140 / 0.4)" : "oklch(0.86 0.02 85)" }} />
             </div>
           ))}
         </div>

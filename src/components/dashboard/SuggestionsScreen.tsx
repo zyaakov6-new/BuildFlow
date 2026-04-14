@@ -366,11 +366,37 @@ export default function SuggestionsScreen() {
     return (
       <div className="max-w-4xl mx-auto px-4 md:px-8 py-6">
         <div className="flex flex-col gap-4 animate-pulse">
-          <div className="h-8 w-48 rounded-xl ms-auto" style={{ background: "oklch(0.91 0.02 85)" }} />
-          <div className="h-10 rounded-2xl" style={{ background: "oklch(0.91 0.02 85)" }} />
-          <div className="h-48 rounded-2xl" style={{ background: "oklch(0.91 0.02 85)" }} />
+          {/* Header */}
+          <div className="flex justify-end gap-2">
+            <div className="h-6 w-44 rounded-xl" style={{ background: "oklch(0.86 0.02 85)" }} />
+          </div>
+          {/* Filter chips */}
+          <div className="flex gap-2 flex-row-reverse">
+            {[70, 55, 65, 50].map((w, i) => <div key={i} className="h-8 rounded-full" style={{ width: w, background: "oklch(0.86 0.02 85)" }} />)}
+          </div>
+          {/* Featured card */}
+          <div className="rounded-3xl overflow-hidden" style={{ background: "oklch(0.86 0.02 85)" }}>
+            <div className="h-1 w-full" style={{ background: "oklch(0.78 0.06 140)" }} />
+            <div className="p-5 flex flex-col gap-3">
+              <div className="flex gap-3">
+                <div className="w-11 h-11 rounded-xl flex-shrink-0" style={{ background: "oklch(0.80 0.04 140)" }} />
+                <div className="flex-1 flex flex-col gap-2">
+                  <div className="h-4 w-3/4 rounded-lg ms-auto" style={{ background: "oklch(0.80 0.02 85)" }} />
+                  <div className="h-3 w-1/2 rounded-lg ms-auto" style={{ background: "oklch(0.83 0.02 85)" }} />
+                </div>
+              </div>
+              <div className="h-10 rounded-xl" style={{ background: "oklch(0.78 0.04 140)" }} />
+            </div>
+          </div>
+          {/* Grid cards */}
           <div className="grid grid-cols-2 gap-3">
-            {[1,2,3,4].map(i => <div key={i} className="h-36 rounded-2xl" style={{ background: "oklch(0.91 0.02 85)" }} />)}
+            {[1,2,3,4].map(i => (
+              <div key={i} className="rounded-2xl p-4 flex flex-col gap-2" style={{ background: "oklch(0.86 0.02 85)" }}>
+                <div className="w-9 h-9 rounded-xl ms-auto" style={{ background: "oklch(0.80 0.02 85)" }} />
+                <div className="h-3 w-full rounded-lg" style={{ background: "oklch(0.80 0.02 85)" }} />
+                <div className="h-3 w-2/3 rounded-lg ms-auto" style={{ background: "oklch(0.83 0.02 85)" }} />
+              </div>
+            ))}
           </div>
         </div>
       </div>

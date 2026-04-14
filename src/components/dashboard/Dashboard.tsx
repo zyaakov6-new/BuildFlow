@@ -712,13 +712,20 @@ export default function Dashboard() {
         <div className="max-w-6xl mx-auto px-4 md:px-8 py-6">
 
           {activeTab === "home" && loadingData && (
-            <div className="flex flex-col gap-4 animate-pulse px-4 pt-6">
-              <div className="rounded-3xl h-32 w-full" style={{ background: "oklch(0.93 0.02 85)" }} />
-              <div className="h-5 w-48 rounded-xl ms-auto" style={{ background: "oklch(0.93 0.02 85)" }} />
-              <div className="h-5 w-32 rounded-xl ms-auto" style={{ background: "oklch(0.93 0.02 85)" }} />
-              <div className="rounded-2xl h-20 w-full" style={{ background: "oklch(0.93 0.02 85)" }} />
-              <div className="rounded-2xl h-20 w-full" style={{ background: "oklch(0.93 0.02 85)" }} />
-              <div className="rounded-2xl h-40 w-full" style={{ background: "oklch(0.93 0.02 85)" }} />
+            <div className="flex flex-col gap-4 animate-pulse">
+              {/* Greeting lines */}
+              <div className="h-7 w-52 rounded-xl ms-auto" style={{ background: "oklch(0.86 0.02 85)" }} />
+              <div className="h-4 w-72 rounded-lg ms-auto" style={{ background: "oklch(0.89 0.02 85)" }} />
+              {/* Dark report card */}
+              <div className="rounded-3xl h-48 w-full" style={{ background: "oklch(0.82 0.03 255)" }} />
+              {/* 3 stat pills */}
+              <div className="grid grid-cols-3 gap-3">
+                {[1,2,3].map(i => <div key={i} className="h-20 rounded-2xl" style={{ background: "oklch(0.86 0.02 85)" }} />)}
+              </div>
+              {/* Upcoming card */}
+              <div className="rounded-2xl h-16 w-full" style={{ background: "oklch(0.86 0.02 85)" }} />
+              {/* Suggestion card */}
+              <div className="rounded-2xl h-36 w-full" style={{ background: "oklch(0.86 0.02 85)" }} />
             </div>
           )}
           {!loadingData && (

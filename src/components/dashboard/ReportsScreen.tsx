@@ -159,9 +159,31 @@ export default function ReportsScreen() {
       </div>
 
       {loading ? (
-        <div className="flex flex-col gap-4">
-          {[1, 2].map((i) => (
-            <div key={i} className="rounded-3xl h-48 animate-pulse" style={{ background: "oklch(0.93 0.02 85)" }} />
+        <div className="flex flex-col gap-5 animate-pulse">
+          {/* Dark summary card */}
+          <div className="rounded-3xl p-6 flex flex-col gap-4" style={{ background: "oklch(0.82 0.03 255)" }}>
+            <div className="h-5 w-40 rounded-lg ms-auto" style={{ background: "oklch(0.70 0.04 255)" }} />
+            <div className="h-16 w-28 rounded-2xl mx-auto" style={{ background: "oklch(0.70 0.04 255)" }} />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="h-16 rounded-xl" style={{ background: "oklch(0.70 0.04 255)" }} />
+              <div className="h-16 rounded-xl" style={{ background: "oklch(0.70 0.04 255)" }} />
+            </div>
+          </div>
+          {/* Chart card */}
+          <div className="rounded-3xl p-5 flex flex-col gap-3" style={{ background: "oklch(0.86 0.02 85)" }}>
+            <div className="h-4 w-32 rounded-lg ms-auto" style={{ background: "oklch(0.80 0.02 85)" }} />
+            <div className="flex items-end gap-2 h-28 px-2">
+              {[60, 80, 45, 90, 70, 55, 75].map((h, i) => (
+                <div key={i} className="flex-1 rounded-t-lg" style={{ height: `${h}%`, background: "oklch(0.80 0.04 140 / 0.6)" }} />
+              ))}
+            </div>
+          </div>
+          {/* Row stats */}
+          {[1, 2, 3].map(i => (
+            <div key={i} className="rounded-2xl h-14 flex items-center px-4 justify-between" style={{ background: "oklch(0.86 0.02 85)" }}>
+              <div className="h-5 w-16 rounded-lg" style={{ background: "oklch(0.80 0.02 85)" }} />
+              <div className="h-4 w-28 rounded-lg" style={{ background: "oklch(0.80 0.02 85)" }} />
+            </div>
           ))}
         </div>
       ) : (
