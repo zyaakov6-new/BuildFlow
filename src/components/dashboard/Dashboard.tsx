@@ -414,32 +414,48 @@ export default function Dashboard() {
 
     try {
       const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-      // 1. Mark suggestion as saved in our DB
+      // 1. Mark suggestion as saved
       const { data: suggestion } = await supabase
         .from("suggestions")
         .update({ status: "saved" })
         .eq("id", id)
-        .select("title, duration_min, time_slot, day_label")
+        .select("title, duration_min, child_id, time_slot, day_label")
         .single();
 
-      // 2. Try to add to Google Calendar if the user connected it
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user && suggestion) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("google_calendar_token")
-          .eq("id", user.id)
-          .maybeSingle();
+      if (!suggestion) return;
 
-        if (profile?.google_calendar_token) {
-          await addToGoogleCalendar({
-            accessToken: profile.google_calendar_token,
-            title: suggestion.title,
-            durationMin: suggestion.duration_min,
-            // scheduledAt left undefined — will default to tomorrow 17:00
-          });
-        }
+      // 2. Insert into saved_moments so the Calendar tab shows it
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(17, 0, 0, 0);
+
+      await supabase.from("saved_moments").insert({
+        user_id: user.id,
+        suggestion_id: id,
+        child_id: suggestion.child_id ?? null,
+        title: suggestion.title,
+        duration_min: suggestion.duration_min ?? 30,
+        scheduled_at: tomorrow.toISOString(),
+        completed: false,
+      });
+
+      // 3. Try to push to Google Calendar if token exists
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("google_calendar_token")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profile?.google_calendar_token) {
+        await addToGoogleCalendar({
+          accessToken: profile.google_calendar_token,
+          title: suggestion.title,
+          durationMin: suggestion.duration_min,
+          scheduledAt: tomorrow.toISOString(),
+        });
       }
     } catch (e) {
       console.error("Failed to save suggestion:", e);
