@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Blocks, BookOpen, Pencil, Car, TreePine, Music, Sparkles,
   Clock, X, Info, ChevronLeft, Utensils, Puzzle, Dumbbell,
@@ -117,6 +117,9 @@ export default function SuggestionsScreen() {
   const [placeFilter, setPlaceFilter] = useState<PlaceFilter>("all");
   const [kidFilter, setKidFilter] = useState<string>("all"); // "all" or child id
 
+  // Ref so the auto-refresh effect always calls the latest handleRefresh
+  const handleRefreshRef = useRef<() => Promise<void>>(async () => {});
+
   useEffect(() => {
     async function load() {
       try {
@@ -194,13 +197,13 @@ export default function SuggestionsScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadTrigger]);
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async (silent = false) => {
     setRefreshing(true);
     setAllItems([]);
     setDismissed(new Set());
     setSaved(new Set());
+    setKidFilter("all");
     try {
-      // force=true: server deletes stale pending suggestions and regenerates with AI
       const res = await fetch("/api/suggestions?force=true");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
@@ -211,7 +214,6 @@ export default function SuggestionsScreen() {
         activity_type?: string; status?: string;
       }> = json.suggestions ?? [];
 
-      // We need the child map — borrow from existing children state
       const childMap = new Map(children.map((c) => [c.id, c]));
       const todayName = TODAY_HEBREW[new Date().getDay()];
 
@@ -247,14 +249,31 @@ export default function SuggestionsScreen() {
         });
 
       setAllItems(items);
-      toast.success("הצעות חדשות נוצרו! ✨");
+      if (!silent) toast.success("הצעות חדשות נוצרו! ✨");
     } catch (e) {
       console.error("Refresh error:", e);
-      toast.error("שגיאה בטעינה, נסה שוב");
+      if (!silent) toast.error("שגיאה בטעינה, נסה שוב");
     } finally {
       setRefreshing(false);
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [children]);
+
+  // Keep ref in sync so the auto-trigger effect is never stale
+  useEffect(() => { handleRefreshRef.current = () => handleRefresh(true); }, [handleRefresh]);
+
+  // Auto-refresh when every suggestion has been saved or dismissed
+  useEffect(() => {
+    if (
+      !loading &&
+      !refreshing &&
+      allItems.length > 0 &&
+      dismissed.size + saved.size >= allItems.length
+    ) {
+      const t = setTimeout(() => handleRefreshRef.current(), 600);
+      return () => clearTimeout(t);
+    }
+  }, [loading, refreshing, allItems.length, dismissed.size, saved.size]);
 
   const handleSave = async (item: SuggestionItem) => {
     setSaved((prev) => new Set(prev).add(item.id));
@@ -403,29 +422,36 @@ export default function SuggestionsScreen() {
         </div>
       )}
 
-      {/* Empty state */}
-      {filtered.length === 0 && (
+      {/* Empty state — auto-refresh fires after 600ms so this shows only briefly */}
+      {filtered.length === 0 && !refreshing && (
         <div className="rounded-2xl p-8 text-center border" style={{ background: "white", borderColor: "oklch(0.93 0.02 85)" }}>
-          <Sparkles className="w-8 h-8 mx-auto mb-3" style={{ color: "oklch(0.65 0.14 140)" }} />
           {allItems.length > 0 && dismissed.size + saved.size >= allItems.length ? (
-            <>
-              <p className="font-black text-sm mb-1" style={{ color: "oklch(0.2 0.03 255)" }}>עברת על כל ההצעות השבוע</p>
-              <p className="text-xs mb-4" style={{ color: "oklch(0.6 0.03 255)" }}>רוצה לראות אותן שוב?</p>
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-black text-white disabled:opacity-60"
-                style={{ background: "linear-gradient(135deg, oklch(0.65 0.14 140), oklch(0.58 0.16 148))" }}
-              >
-                {refreshing ? "טוען..." : "קבל עוד הצעות"}
-              </button>
-            </>
+            // All exhausted — show "generating…" (auto-refresh will kick in)
+            <div className="flex flex-col items-center gap-3">
+              <div className="animate-pulse">
+                <Sparkles className="w-8 h-8" style={{ color: "oklch(0.65 0.14 140)" }} />
+              </div>
+              <p className="font-black text-sm" style={{ color: "oklch(0.2 0.03 255)" }}>מכין לך רעיונות חדשים...</p>
+              <p className="text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>רגע אחד</p>
+            </div>
           ) : (
-            <>
-              <p className="font-black text-sm mb-1" style={{ color: "oklch(0.2 0.03 255)" }}>אין הצעות עם הסינון הזה</p>
+            // Active filter hiding results
+            <div className="flex flex-col items-center gap-2">
+              <Sparkles className="w-7 h-7" style={{ color: "oklch(0.65 0.14 140)" }} />
+              <p className="font-black text-sm" style={{ color: "oklch(0.2 0.03 255)" }}>אין הצעות עם הסינון הזה</p>
               <p className="text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>נסה לשנות את הסינון</p>
-            </>
+            </div>
           )}
+        </div>
+      )}
+
+      {/* Refreshing skeleton — shows while auto-refresh or manual refresh loads */}
+      {filtered.length === 0 && refreshing && (
+        <div className="flex flex-col gap-4 animate-pulse">
+          <div className="h-48 rounded-2xl" style={{ background: "oklch(0.91 0.02 85)" }} />
+          <div className="grid grid-cols-2 gap-3">
+            {[1,2,3,4].map(i => <div key={i} className="h-36 rounded-2xl" style={{ background: "oklch(0.91 0.02 85)" }} />)}
+          </div>
         </div>
       )}
 

@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+// Raw fetch — no SDK, fully compatible with Vercel Edge Runtime
 
 interface ChildProfile {
   id: string;
@@ -7,7 +7,7 @@ interface ChildProfile {
   interests: string[];
 }
 
-interface GeneratedSuggestion {
+export interface GeneratedSuggestion {
   title: string;
   description: string;
   duration_min: number;
@@ -18,13 +18,13 @@ interface GeneratedSuggestion {
   activity_type: string;
   accent_color: string;
   bg_color: string;
-  child_index: number; // index into children array, 0-based
+  child_index: number; // 0-based index into the children array
 }
 
 const SYSTEM_PROMPT = `אתה מומחה לפעילויות הורים-ילדים למשפחות ישראליות. אתה יוצר הצעות פעילויות מותאמות אישית שהורים יכולים לעשות עם ילדיהם.
 
 כללים:
-- כל פעילות חייבת להיות מתאימה לגיל הילד
+- כל פעילות חייבת להיות מותאמת לגיל הילד ולתחומי העניין שלו
 - עדיפות לפעילויות שדורשות אפס או מינימום הכנה
 - גיוון בין ימים שונים ושעות שונות
 - גיוון בין סוגי פעילויות: יצירתיות, ספורט, קריאה, טבע, בישול, מדע, שיחה
@@ -49,14 +49,17 @@ export async function generateAISuggestions(
   children: ChildProfile[],
   recentTitles: string[] = []
 ): Promise<GeneratedSuggestion[]> {
-  const client = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY,
-  });
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error("ANTHROPIC_API_KEY environment variable is not set");
+  }
 
   const childrenDesc = children
     .map(
       (c, i) =>
-        `ילד ${i + 1}: שם: ${c.name}, גיל: ${c.age_group || "לא צוין"}, תחומי עניין: ${c.interests.length > 0 ? c.interests.join(", ") : "כללי"}`
+        `ילד ${i + 1}: שם: ${c.name}, גיל: ${c.age_group || "לא צוין"}, תחומי עניין: ${
+          c.interests.length > 0 ? c.interests.join(", ") : "כללי"
+        }`
     )
     .join("\n");
 
@@ -69,41 +72,57 @@ export async function generateAISuggestions(
 
 ${childrenDesc}${recentDesc}
 
-הפץ את ההצעות בין הילדים השונים כמה שניתן.
-וודא גיוון בין ימים (ראשון עד שישי) ושעות (16:00-20:30).
-הוסף לפחות 2 פעילויות חוץ ו-2 פעילויות בבית.
+חשוב מאוד:
+- הפץ את ההצעות בין הילדים השונים כמה שניתן (ילד 1 וילד 2 מקבלים ~3 הצעות כל אחד)
+- התאם כל פעילות לתחומי העניין הספציפיים של הילד
+- גיוון בין ימים (ראשון עד שישי) ושעות (16:00-20:30)
+- לפחות 2 פעילויות חוץ ו-2 פעילויות בבית
 
 החזר JSON בלבד, מערך של בדיוק 6 אובייקטים עם המפתחות:
 title, description, duration_min, prep_min, time_slot, day_label, category, activity_type, accent_color, bg_color, child_index
 
 child_index הוא אינדקס הילד (0 עבור ילד ראשון, 1 עבור שני וכו').`;
 
-  // Use streaming so the edge function gets incremental bytes and doesn't time out
-  const stream = client.messages.stream({
-    model: "claude-opus-4-6",
-    max_tokens: 2048, // 6 suggestions need ~1000-1500 tokens; 2048 is plenty
-    system: [
-      {
-        type: "text",
-        text: SYSTEM_PROMPT,
-        cache_control: { type: "ephemeral" },
-      },
-    ],
-    messages: [{ role: "user", content: userPrompt }],
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-beta": "prompt-caching-2024-07-31",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 2048,
+      system: [
+        {
+          type: "text",
+          text: SYSTEM_PROMPT,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
+      messages: [{ role: "user", content: userPrompt }],
+    }),
   });
 
-  const response = await stream.finalMessage();
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new Error("No text response from Claude");
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error(`Anthropic API ${res.status}: ${errBody}`);
   }
 
-  // Extract JSON — Claude may wrap it in ```json ... ``` fences or add prose
+  const data = (await res.json()) as {
+    content: Array<{ type: string; text: string }>;
+  };
+
+  const textBlock = data.content.find((b) => b.type === "text");
+  if (!textBlock) {
+    throw new Error("No text block in Anthropic response");
+  }
+
+  // Extract JSON — Claude may wrap in ```json fences or add leading prose
   let raw = textBlock.text.trim();
   const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (fenceMatch) raw = fenceMatch[1].trim();
-
-  // Find the first [ or { in case there is any leading prose
   const jsonStart = raw.search(/[\[{]/);
   if (jsonStart > 0) raw = raw.slice(jsonStart);
 
