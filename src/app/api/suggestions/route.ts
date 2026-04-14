@@ -498,7 +498,10 @@ export async function GET(request: Request) {
       .neq("status", "dismissed");
 
     if (existing && existing.length > 0) {
-      return Response.json({ suggestions: existing });
+      return Response.json({
+        suggestions: existing,
+        _debug: { aiUsed: false, aiError: "cache hit — existing suggestions returned", keyPresent: !!process.env.ANTHROPIC_API_KEY },
+      });
     }
   }
 

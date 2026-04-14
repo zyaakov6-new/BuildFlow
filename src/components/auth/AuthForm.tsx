@@ -97,7 +97,7 @@ export default function AuthForm() {
         // Request Google Calendar access when signing in with Google
         ...(provider === "google" && {
           scopes: "https://www.googleapis.com/auth/calendar.events",
-          queryParams: { access_type: "offline", prompt: "consent" },
+          queryParams: { access_type: "offline" },
         }),
       },
     });
