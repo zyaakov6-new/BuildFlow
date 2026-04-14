@@ -6,10 +6,12 @@ import Link from "next/link";
 import {
   Sparkles, Plus, Trash2, ChevronLeft,
   Check, Clock, CalendarDays, Users, Heart, Lock,
+  BookOpen, Pencil, Music, TreePine, CheckCircle2,
+  RotateCcw, PartyPopper,
 } from "lucide-react";
 
 // ---- Types ----
-type StepNum = 1 | 2 | 3;
+type StepNum = 1 | 2 | 3 | 4;
 
 interface Child {
   id: number;
@@ -58,7 +60,7 @@ function StepBar({ current }: { current: StepNum }) {
   return (
     <div>
       <div className="flex items-center gap-2 mb-1.5">
-        {([1, 2, 3] as StepNum[]).map((s) => (
+        {([1, 2, 3, 4] as StepNum[]).map((s) => (
           <div
             key={s}
             className="h-1.5 flex-1 rounded-full transition-all duration-500"
@@ -67,7 +69,7 @@ function StepBar({ current }: { current: StepNum }) {
         ))}
       </div>
       <p className="text-xs text-center" style={{ color: "oklch(0.68 0.03 255)" }}>
-        שלב {current} מתוך 3
+        שלב {current} מתוך 4
       </p>
     </div>
   );
@@ -631,7 +633,7 @@ function CalendarConnect({
 
         {/* Finish CTA */}
         <PrimaryButton
-          label={data.calendarConnected ? "סיום והתחל להשתמש" : "המשך בלי יומן"}
+          label={data.calendarConnected ? "המשך" : "המשך בלי יומן"}
           onClick={onFinish}
         />
 
@@ -653,7 +655,340 @@ function CalendarConnect({
 }
 
 // ============================================================
-// ROOT - orchestrates the 3 screens
+// SCREEN 4 — First Win / Personalised Preview
+// ============================================================
+
+interface ActivitySuggestion {
+  id: string;
+  title: string;
+  description: string;
+  duration: string;
+  timeSlot: string;
+  prepLevel: "אפס הכנה" | "הכנה קלה";
+  context: string;
+  interests: string[];
+  ageGroups: string[];
+  Icon: React.ElementType;
+  accentColor: string;
+  bgColor: string;
+}
+
+const ACTIVITY_POOL: ActivitySuggestion[] = [
+  {
+    id: "lego",
+    title: "בניית לגו ביחד",
+    description: "שב על הרצפה ותן לילד להוביל את הבנייה. שום מסך, שום הכנה - רק שניכם.",
+    duration: "20 דק'", timeSlot: "17:30 - 17:50", prepLevel: "אפס הכנה",
+    context: "מתאים אחרי בית ספר",
+    interests: ["לגו", "מיינקראפט"],
+    ageGroups: ["3-5", "6-8", "9-12"],
+    Icon: Sparkles, accentColor: "oklch(0.55 0.14 140)", bgColor: "oklch(0.88 0.08 140 / 0.15)",
+  },
+  {
+    id: "drawing",
+    title: "ציור חופשי ביחד",
+    description: "נייר לבן, צבעים, וחצי שעה בלי מסכות. הכי קל ומחבר שיש.",
+    duration: "25 דק'", timeSlot: "18:00 - 18:25", prepLevel: "הכנה קלה",
+    context: "מתאים אחרי ארוחת ערב",
+    interests: ["ציור", "אומנות"],
+    ageGroups: ["3-5", "6-8", "9-12"],
+    Icon: Pencil, accentColor: "oklch(0.55 0.15 42)", bgColor: "oklch(0.92 0.06 60 / 0.15)",
+  },
+  {
+    id: "reading",
+    title: "קריאה ביחד לפני שינה",
+    description: "שכבו יחד על הספה ותנו לילד לבחור דף. רגע שקט שיוצר קרבה אמיתית.",
+    duration: "20 דק'", timeSlot: "20:00 - 20:20", prepLevel: "אפס הכנה",
+    context: "מושלם לפני שינה",
+    interests: ["ספרים", "קריאה", "אנימציה"],
+    ageGroups: ["0-2", "3-5", "6-8", "9-12"],
+    Icon: BookOpen, accentColor: "oklch(0.52 0.18 255)", bgColor: "oklch(0.90 0.06 255 / 0.12)",
+  },
+  {
+    id: "dinos",
+    title: "משחק דינוזאורים קצר",
+    description: "הניחו פסים על השטיח ותנו לדינוזאורים לספר סיפור. אפס הכנה, מקסימום כיף.",
+    duration: "15 דק'", timeSlot: "17:45 - 18:00", prepLevel: "אפס הכנה",
+    context: "מתאים אחרי הגן",
+    interests: ["דינוזאורים", "טבע", "מדע"],
+    ageGroups: ["3-5", "6-8"],
+    Icon: Sparkles, accentColor: "oklch(0.58 0.16 42)", bgColor: "oklch(0.93 0.07 60 / 0.18)",
+  },
+  {
+    id: "music",
+    title: "שירים ביחד - פלייליסט של הילד",
+    description: "תנו לילד לבחור 3 שירים ותרקדו ביחד בסלון. 15 דקות של אנרגיה וחיוכים.",
+    duration: "15 דק'", timeSlot: "18:30 - 18:45", prepLevel: "אפס הכנה",
+    context: "מתאים לפני אמבטיה",
+    interests: ["מוזיקה", "ריקוד"],
+    ageGroups: ["0-2", "3-5", "6-8", "9-12"],
+    Icon: Music, accentColor: "oklch(0.52 0.18 320)", bgColor: "oklch(0.90 0.06 320 / 0.10)",
+  },
+  {
+    id: "nature",
+    title: "סיבוב קצר בחוץ ביחד",
+    description: "אפילו 15 דקות בחוץ עם ילדים קטנים יוצרת זיכרונות. תחפשו שלושה עלים שונים.",
+    duration: "20 דק'", timeSlot: "17:00 - 17:20", prepLevel: "אפס הכנה",
+    context: "מתאים אחרי הגן",
+    interests: ["טבע", "טיולים", "מדע"],
+    ageGroups: ["0-2", "3-5", "6-8"],
+    Icon: TreePine, accentColor: "oklch(0.48 0.16 148)", bgColor: "oklch(0.88 0.08 140 / 0.12)",
+  },
+  {
+    id: "cooking",
+    title: "בישול קל ביחד",
+    description: "תנו לילד לערבב, לשפוך ולבחור. לא חשוב מה יוצא - חשוב שעשיתם ביחד.",
+    duration: "20 דק'", timeSlot: "16:30 - 16:50", prepLevel: "הכנה קלה",
+    context: "מתאים אחרי בית ספר",
+    interests: ["בישול"],
+    ageGroups: ["3-5", "6-8", "9-12"],
+    Icon: Sparkles, accentColor: "oklch(0.60 0.16 42)", bgColor: "oklch(0.93 0.07 60 / 0.15)",
+  },
+  {
+    id: "sports",
+    title: "20 דקות כדורגל בחצר",
+    description: "אפילו בלי שער אמיתי - כדור ושתי כתרות ויש לכם משחק. פשוט ואמיתי.",
+    duration: "20 דק'", timeSlot: "17:00 - 17:20", prepLevel: "אפס הכנה",
+    context: "מתאים אחרי בית ספר",
+    interests: ["כדורגל", "ספורט", "שחייה"],
+    ageGroups: ["3-5", "6-8", "9-12", "13+"],
+    Icon: Sparkles, accentColor: "oklch(0.55 0.14 140)", bgColor: "oklch(0.88 0.08 140 / 0.15)",
+  },
+  // universal fallback
+  {
+    id: "default",
+    title: "קריאה לפני שינה",
+    description: "ספר אחד ביחד לפני שינה. כל גיל, כל ערב - הפשטות היא הכוח.",
+    duration: "15 דק'", timeSlot: "20:00 - 20:15", prepLevel: "אפס הכנה",
+    context: "מושלם לפני שינה",
+    interests: [],
+    ageGroups: ["0-2", "3-5", "6-8", "9-12", "13+"],
+    Icon: BookOpen, accentColor: "oklch(0.52 0.18 255)", bgColor: "oklch(0.90 0.06 255 / 0.12)",
+  },
+];
+
+/** Returns activities ranked by relevance to the first child's interests + age. */
+function rankActivities(children: Child[]): ActivitySuggestion[] {
+  if (children.length === 0) return ACTIVITY_POOL;
+  const { interests, ageGroup } = children[0];
+
+  const scored = ACTIVITY_POOL.map((a) => {
+    let score = 0;
+    interests.forEach((i) => { if (a.interests.includes(i)) score += 3; });
+    if (ageGroup && a.ageGroups.includes(ageGroup)) score += 2;
+    if (a.id === "default") score -= 1; // keep fallback last
+    return { a, score };
+  });
+
+  return scored
+    .sort((x, y) => y.score - x.score)
+    .map((s) => s.a);
+}
+
+function FirstWinScreen({
+  data, onBack, onFinish,
+}: {
+  data: FormData;
+  onBack: () => void;
+  onFinish: () => void;
+}) {
+  const pool = rankActivities(data.children);
+  const [index, setIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
+  const [saved, setSaved] = useState(false);
+
+  const activity = pool[index % pool.length];
+  const firstChild = data.children[0] ?? null;
+  const childColor = CHILD_COLORS[0].accent;
+  const Icon = activity.Icon;
+
+  const handleNext = () => {
+    setVisible(false);
+    setTimeout(() => {
+      setIndex((i) => i + 1);
+      setSaved(false);
+      setVisible(true);
+    }, 220);
+  };
+
+  const handleSave = () => setSaved(true);
+
+  return (
+    <div className="min-h-screen" style={{ background: "oklch(0.97 0.01 85)" }}>
+      <NavBar showBack onBack={onBack} />
+
+      <div className="px-6 pb-10">
+        {/* Progress 4/4 */}
+        <div className="mb-6">
+          <StepBar current={4} />
+        </div>
+
+        {/* Celebration header */}
+        <div className="text-right mb-5">
+          <div
+            className="w-11 h-11 rounded-2xl flex items-center justify-center mb-3"
+            style={{ background: "oklch(0.92 0.06 60 / 0.28)" }}
+          >
+            <PartyPopper className="w-5.5 h-5.5" style={{ color: "oklch(0.65 0.18 42)" }} />
+          </div>
+          <h2 className="text-2xl font-black mb-1.5 leading-snug" style={{ color: "oklch(0.18 0.03 255)" }}>
+            כמעט סיימנו!
+            <br />
+            <span className="text-gradient">הנה הצעה ראשונה בשבילכם</span>
+          </h2>
+          <p className="text-sm" style={{ color: "oklch(0.55 0.03 255)" }}>
+            {firstChild?.name
+              ? `התאמנו אותה במיוחד ל${firstChild.name}.`
+              : "התאמנו אותה במיוחד למשפחה שלכם."}
+          </p>
+        </div>
+
+        {/* Activity card — fades on swap */}
+        <div
+          className="rounded-3xl border overflow-hidden mb-4 transition-all duration-200"
+          style={{
+            background: "white",
+            borderColor: "oklch(0.91 0.02 85)",
+            boxShadow: "0 8px 32px oklch(0 0 0 / 0.09)",
+            opacity: visible ? 1 : 0,
+            transform: visible ? "translateY(0)" : "translateY(6px)",
+          }}
+        >
+          {/* Accent strip */}
+          <div
+            className="h-1.5 w-full"
+            style={{ background: `linear-gradient(90deg, ${activity.accentColor}, oklch(0.72 0.18 42))` }}
+          />
+
+          <div className="p-5">
+            {/* Context badge */}
+            <div className="flex items-center justify-end mb-3">
+              <span
+                className="text-xs font-bold rounded-full px-3 py-1"
+                style={{ background: `${activity.accentColor}18`, color: activity.accentColor }}
+              >
+                {activity.context}
+              </span>
+            </div>
+
+            {/* Icon + title + child */}
+            <div className="flex items-start gap-4 mb-3">
+              <div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
+                style={{ background: activity.bgColor }}
+              >
+                <Icon className="w-7 h-7" style={{ color: activity.accentColor }} />
+              </div>
+              <div className="flex-1 text-right">
+                <p className="font-black text-lg leading-snug mb-1.5" style={{ color: "oklch(0.18 0.03 255)" }}>
+                  {activity.title}
+                </p>
+                {firstChild && (
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span className="text-sm" style={{ color: "oklch(0.55 0.03 255)" }}>
+                      {firstChild.name || "הילד שלך"}
+                      {firstChild.ageGroup ? `, גיל ${firstChild.ageGroup}` : ""}
+                    </span>
+                    <div
+                      className="w-6 h-6 rounded-full flex items-center justify-center font-black text-white flex-shrink-0"
+                      style={{ background: childColor, fontSize: "11px" }}
+                    >
+                      {(firstChild.name || "?")[0]}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Description */}
+            <p
+              className="text-sm text-right leading-relaxed mb-4 pb-4"
+              style={{
+                color: "oklch(0.48 0.03 255)",
+                borderBottom: "1px solid oklch(0.93 0.02 85)",
+              }}
+            >
+              {activity.description}
+            </p>
+
+            {/* Meta row */}
+            <div className="flex items-center justify-between">
+              <span
+                className="text-xs font-semibold rounded-full px-2.5 py-1"
+                style={{ background: `${activity.accentColor}14`, color: activity.accentColor }}
+              >
+                {activity.prepLevel}
+              </span>
+              <div className="flex items-center gap-3 text-xs" style={{ color: "oklch(0.58 0.03 255)" }}>
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {activity.duration}
+                </span>
+                <span>{activity.timeSlot}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Saved state overlay */}
+          {saved && (
+            <div
+              className="flex items-center gap-3 px-5 py-3 flex-row-reverse"
+              style={{ background: "oklch(0.92 0.06 140 / 0.25)", borderTop: "1px solid oklch(0.82 0.08 140 / 0.3)" }}
+            >
+              <CheckCircle2 className="w-5 h-5 flex-shrink-0" style={{ color: "oklch(0.52 0.14 140)" }} />
+              <p className="text-sm font-bold" style={{ color: "oklch(0.38 0.12 140)" }}>
+                נשמר - נראה אותו בדשבורד שלך
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Two action buttons */}
+        {!saved ? (
+          <div className="flex flex-col gap-3 mb-5">
+            <PrimaryButton label="שמור ליומן עכשיו" onClick={handleSave} />
+            <button
+              onClick={handleNext}
+              className="w-full rounded-2xl py-3.5 text-sm font-bold border-2 flex items-center justify-center gap-2 transition-all active:scale-[0.97]"
+              style={{
+                borderColor: "oklch(0.88 0.04 140 / 0.6)",
+                color: "oklch(0.52 0.14 140)",
+                background: "white",
+              }}
+            >
+              <RotateCcw className="w-4 h-4" />
+              תן לי הצעה אחרת
+            </button>
+          </div>
+        ) : (
+          <div className="mb-5" />
+        )}
+
+        {/* Motivational line */}
+        <div
+          className="rounded-2xl p-4 mb-6 text-right"
+          style={{
+            background: "oklch(0.94 0.04 140 / 0.3)",
+            border: "1px solid oklch(0.82 0.06 140 / 0.3)",
+          }}
+        >
+          <div className="flex items-start gap-2 flex-row-reverse">
+            <Heart className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "oklch(0.52 0.14 140)" }} />
+            <p className="text-sm leading-relaxed" style={{ color: "oklch(0.38 0.10 140)" }}>
+              זה רק ההתחלה. BondFlow ימצא לכם 3-5 רגעים כאלה בכל שבוע - בלי מאמץ נוסף.
+            </p>
+          </div>
+        </div>
+
+        {/* Final CTA */}
+        <PrimaryButton label="סיום והתחל להשתמש ב-BondFlow" onClick={onFinish} />
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// ROOT - orchestrates the 4 screens
 // ============================================================
 export default function OnboardingFlow() {
   const router = useRouter();
@@ -664,7 +999,7 @@ export default function OnboardingFlow() {
   });
 
   const advance = () => {
-    if (step < 3) setStep((s) => (s + 1) as StepNum);
+    if (step < 4) setStep((s) => (s + 1) as StepNum);
     else router.push("/dashboard");
   };
 
@@ -686,12 +1021,21 @@ export default function OnboardingFlow() {
       />
     );
 
+  if (step === 3)
+    return (
+      <CalendarConnect
+        data={data}
+        setData={setData}
+        onFinish={advance}
+        onBack={retreat}
+      />
+    );
+
   return (
-    <CalendarConnect
+    <FirstWinScreen
       data={data}
-      setData={setData}
-      onFinish={advance}
       onBack={retreat}
+      onFinish={() => router.push("/dashboard")}
     />
   );
 }
