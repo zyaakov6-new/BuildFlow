@@ -40,7 +40,7 @@ export default function AuthForm() {
       }
 
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const { data: signUpData, error } = await supabase.auth.signUp({
           email: form.email,
           password: form.password,
           options: {
@@ -49,7 +49,13 @@ export default function AuthForm() {
           },
         });
         if (error) throw error;
-        setMagicSent(true); // reuse the "check email" state
+        // If session is returned, email confirmation is disabled — go straight in
+        if (signUpData.session) {
+          router.push("/onboarding");
+          return;
+        }
+        // Otherwise ask user to confirm their email
+        setMagicSent(true);
         return;
       }
 

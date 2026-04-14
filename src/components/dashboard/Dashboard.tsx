@@ -593,14 +593,52 @@ export default function Dashboard() {
                     onBlock={handleBlock}
                     onDismiss={handleDismiss}
                   />
-                ) : (
+                ) : suggestions.some((s) => s.blocked) ? (
+                  /* All remaining were saved */
                   <div
                     className="rounded-2xl p-6 text-center border"
                     style={{ background: "white", borderColor: "oklch(0.93 0.02 85)" }}
                   >
                     <CheckCircle2 className="w-7 h-7 mx-auto mb-2" style={{ color: "oklch(0.65 0.14 140)" }} />
                     <p className="text-sm font-black mb-1" style={{ color: "oklch(0.2 0.03 255)" }}>כל הרגעים נשמרו!</p>
-                    <p className="text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>שבוע נהדר.</p>
+                    <p className="text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>שבוע נהדר. תבדוק את היומן שלך.</p>
+                  </div>
+                ) : (
+                  /* All were dismissed — offer more */
+                  <div
+                    className="rounded-2xl p-5 text-right border"
+                    style={{
+                      background: "white",
+                      borderColor: "oklch(0.88 0.04 140 / 0.5)",
+                      boxShadow: "0 2px 10px oklch(0.65 0.14 140 / 0.07)",
+                    }}
+                  >
+                    <div className="flex items-start gap-3 flex-row-reverse mb-3">
+                      <div
+                        className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ background: "oklch(0.88 0.08 140 / 0.2)" }}
+                      >
+                        <Sparkles className="w-4 h-4" style={{ color: "oklch(0.52 0.14 140)" }} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-black mb-0.5" style={{ color: "oklch(0.2 0.03 255)" }}>
+                          יש עוד הצעות בשבילך
+                        </p>
+                        <p className="text-xs leading-relaxed" style={{ color: "oklch(0.55 0.03 255)" }}>
+                          לא מצאת משהו מתאים? יש לנו עוד רגעים שמחכים לך.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setActiveTab("suggestions")}
+                      className="w-full rounded-xl py-2.5 text-sm font-black text-white transition-opacity hover:opacity-90 active:scale-[0.98]"
+                      style={{
+                        background: "linear-gradient(135deg, oklch(0.65 0.14 140), oklch(0.58 0.16 148))",
+                        boxShadow: "0 4px 12px oklch(0.65 0.14 140 / 0.3)",
+                      }}
+                    >
+                      גלה עוד הצעות
+                    </button>
                   </div>
                 )}
               </div>
