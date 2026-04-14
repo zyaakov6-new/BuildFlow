@@ -2,585 +2,696 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Sparkles, Plus, Trash2, ChevronLeft, Check, Calendar, Clock, User, Users, CalendarDays, Timer, PartyPopper, Blocks, Lock } from "lucide-react";
+import Link from "next/link";
+import {
+  Sparkles, Plus, Trash2, ChevronLeft,
+  Check, Clock, CalendarDays, Users, Heart, Lock,
+} from "lucide-react";
 
 // ---- Types ----
+type StepNum = 1 | 2 | 3;
+
 interface Child {
   id: number;
   name: string;
-  age: string;
+  ageGroup: string;
   interests: string[];
 }
 
 interface FormData {
-  parentName: string;
   children: Child[];
-  calendarConnected: "google" | "apple" | "manual" | null;
-  availableSlots: string[];
+  calendarConnected: "google" | "apple" | null;
 }
+
+// ---- Constants ----
+const AGE_GROUPS = ["0-2", "3-5", "6-8", "9-12", "13+"];
 
 const INTEREST_OPTIONS = [
-  "לגו", "ציור", "ספרים", "מוזיקה", "ספורט", "מיינקראפט",
-  "דינוזאורים", "בישול", "טבע", "מחשבים", "כדורגל", "ריקוד",
-  "אומנות", "מדע", "קריאה", "משחקי קופסא",
+  "לגו", "ציור", "ספרים", "מוזיקה", "כדורגל", "טבע",
+  "דינוזאורים", "בישול", "מיינקראפט", "ריקוד",
+  "משחקי קופסא", "טיולים", "שחייה", "מדע", "אנימציה", "אומנות",
 ];
 
-const TIME_SLOTS = [
-  { id: "morning", label: "בוקר (7:00-9:00)", sub: "לפני עבודה" },
-  { id: "afternoon", label: "צהריים (12:00-14:00)", sub: "הפסקת צהריים" },
-  { id: "after_school", label: "אחה\"צ (15:30-18:00)", sub: "אחרי בית ספר" },
-  { id: "evening", label: "ערב (18:00-20:00)", sub: "אחרי ארוחת ערב" },
-  { id: "weekend_morning", label: "סוף שבוע בוקר", sub: "שישי-שבת" },
-  { id: "weekend_afternoon", label: "סוף שבוע צהריים", sub: "שישי-שבת" },
+const CHILD_COLORS = [
+  { accent: "oklch(0.72 0.18 42)",  bg: "oklch(0.94 0.06 60 / 0.3)"  },
+  { accent: "oklch(0.58 0.18 280)", bg: "oklch(0.93 0.05 280 / 0.2)" },
+  { accent: "oklch(0.55 0.14 140)", bg: "oklch(0.92 0.06 140 / 0.2)" },
 ];
 
-const TOTAL_STEPS = 5;
+// ---- Shared components ----
 
-// ---- Step indicator ----
-function StepBar({ current, total }: { current: number; total: number }) {
+function Logo() {
   return (
-    <div className="flex items-center gap-2 mb-8">
-      {Array.from({ length: total }).map((_, i) => (
-        <div key={i} className="flex items-center gap-2 flex-1">
-          <div
-            className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${i < current ? "gradient-cta" : i === current - 1 ? "gradient-cta" : ""}`}
-            style={{
-              background: i < current
-                ? "oklch(0.65 0.14 140)"
-                : "oklch(0.9 0.02 85)",
-            }}
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ---- Shared input style ----
-const inputClass = `
-  w-full rounded-2xl px-5 py-3.5 text-sm font-medium outline-none transition-all
-  bg-white border-2 text-right
-  placeholder:text-[oklch(0.7_0.02_255)]
-  focus:border-[oklch(0.65_0.14_140)]
-  hover:border-[oklch(0.8_0.05_140)]
-`;
-
-// ---- Step 1: Parent name ----
-function Step1({ data, setData }: { data: FormData; setData: (d: FormData) => void }) {
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="text-right">
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: "oklch(0.88 0.08 140 / 0.18)" }}>
-          <User className="w-7 h-7" style={{ color: "oklch(0.65 0.14 140)" }} />
-        </div>
-        <h2 className="text-3xl font-black mb-2" style={{ color: "oklch(0.2 0.03 255)" }}>
-          שלום! מי אתה?
-        </h2>
-        <p className="text-base" style={{ color: "oklch(0.55 0.03 255)" }}>
-          נתחיל עם הכרות קצרה. זה לוקח 3 דקות.
-        </p>
+    <div className="flex items-center gap-2">
+      <span className="font-black text-lg" style={{ color: "oklch(0.18 0.05 255)" }}>BondFlow</span>
+      <div
+        className="w-8 h-8 rounded-xl flex items-center justify-center"
+        style={{ background: "oklch(0.65 0.14 140)" }}
+      >
+        <Sparkles className="w-4 h-4 text-white" />
       </div>
-      <input
-        type="text"
-        placeholder="השם שלך"
-        value={data.parentName}
-        onChange={(e) => setData({ ...data, parentName: e.target.value })}
-        className={inputClass}
-        style={{ borderColor: "oklch(0.88 0.02 85)", fontSize: "1.1rem" }}
-        autoFocus
-      />
-      {data.parentName && (
-        <p className="text-right text-sm font-semibold" style={{ color: "oklch(0.65 0.14 140)" }}>
-          נעים להכיר, {data.parentName}! 🌱
-        </p>
-      )}
     </div>
   );
 }
 
-// ---- Step 2: Children ----
-function Step2({ data, setData }: { data: FormData; setData: (d: FormData) => void }) {
+function StepBar({ current }: { current: StepNum }) {
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-1.5">
+        {([1, 2, 3] as StepNum[]).map((s) => (
+          <div
+            key={s}
+            className="h-1.5 flex-1 rounded-full transition-all duration-500"
+            style={{ background: s <= current ? "oklch(0.65 0.14 140)" : "oklch(0.90 0.02 85)" }}
+          />
+        ))}
+      </div>
+      <p className="text-xs text-center" style={{ color: "oklch(0.68 0.03 255)" }}>
+        שלב {current} מתוך 3
+      </p>
+    </div>
+  );
+}
+
+function NavBar({ onBack, showBack }: { onBack?: () => void; showBack?: boolean }) {
+  return (
+    <div className="flex items-center justify-between px-6 pt-8 pb-4">
+      {showBack ? (
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1 text-sm font-medium transition-opacity hover:opacity-70"
+          style={{ color: "oklch(0.58 0.03 255)" }}
+        >
+          <ChevronLeft className="w-4 h-4" />
+          חזור
+        </button>
+      ) : (
+        <Link
+          href="/auth"
+          className="text-sm font-bold transition-opacity hover:opacity-70"
+          style={{ color: "oklch(0.52 0.14 140)" }}
+        >
+          כניסה
+        </Link>
+      )}
+      <Logo />
+    </div>
+  );
+}
+
+function PrimaryButton({
+  label, onClick, disabled = false,
+}: { label: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="w-full rounded-2xl py-4 text-base font-black text-white transition-all active:scale-[0.97]"
+      style={{
+        background: disabled
+          ? "oklch(0.85 0.02 85)"
+          : "linear-gradient(135deg, oklch(0.65 0.14 140), oklch(0.58 0.16 148))",
+        color: disabled ? "oklch(0.65 0.03 255)" : "white",
+        boxShadow: disabled ? "none" : "0 8px 28px oklch(0.65 0.14 140 / 0.38)",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+// ---- Hero Illustration (Screen 1) ----
+function HeroIllustration() {
+  return (
+    <div
+      className="relative w-full overflow-hidden flex-shrink-0"
+      style={{
+        height: "260px",
+        background: "linear-gradient(145deg, oklch(0.93 0.05 140), oklch(0.95 0.04 55))",
+      }}
+    >
+      {/* Background glow blobs */}
+      <div className="absolute -top-10 -right-10 w-52 h-52 rounded-full opacity-35 blur-3xl pointer-events-none" style={{ background: "oklch(0.65 0.14 140)" }} />
+      <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full opacity-28 blur-2xl pointer-events-none" style={{ background: "oklch(0.72 0.18 42)" }} />
+      <div className="absolute top-1/2 right-1/3 w-24 h-24 rounded-full opacity-18 blur-xl pointer-events-none" style={{ background: "oklch(0.60 0.18 280)" }} />
+
+      {/* Family composition */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="relative">
+          {/* Dashed connection lines */}
+          <div
+            className="absolute inset-y-0 -left-14 -right-14 flex items-center opacity-25"
+            style={{ top: "50%" }}
+          >
+            <div
+              className="h-0.5 w-full"
+              style={{
+                background: "none",
+                borderTop: "2px dashed oklch(0.52 0.14 140)",
+              }}
+            />
+          </div>
+
+          {/* Parent center */}
+          <div
+            className="relative z-10 w-[72px] h-[72px] rounded-full bg-white flex items-center justify-center font-black text-2xl"
+            style={{
+              color: "oklch(0.50 0.14 140)",
+              boxShadow: "0 12px 32px oklch(0.55 0.14 140 / 0.22)",
+            }}
+          >
+            מ
+            <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white shadow-md flex items-center justify-center">
+              <Heart className="w-3 h-3" style={{ color: "oklch(0.62 0.20 15)" }} />
+            </div>
+          </div>
+
+          {/* Kid 1 - right */}
+          <div
+            className="absolute -right-[68px] top-3 w-14 h-14 rounded-full bg-white flex items-center justify-center font-black text-xl"
+            style={{ color: "oklch(0.60 0.18 42)", boxShadow: "0 8px 20px oklch(0.72 0.18 42 / 0.18)" }}
+          >
+            י
+          </div>
+
+          {/* Kid 2 - left */}
+          <div
+            className="absolute -left-[68px] top-3 w-14 h-14 rounded-full bg-white flex items-center justify-center font-black text-xl"
+            style={{ color: "oklch(0.50 0.18 280)", boxShadow: "0 8px 20px oklch(0.60 0.18 280 / 0.18)" }}
+          >
+            נ
+          </div>
+        </div>
+      </div>
+
+      {/* Floating card - top right: time slot */}
+      <div
+        className="absolute top-5 right-5 bg-white rounded-2xl shadow-lg p-3 flex items-center gap-2.5"
+        style={{ boxShadow: "0 4px 18px oklch(0 0 0 / 0.09)" }}
+      >
+        <div
+          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{ background: "oklch(0.88 0.08 140 / 0.2)" }}
+        >
+          <Clock className="w-3.5 h-3.5" style={{ color: "oklch(0.52 0.14 140)" }} />
+        </div>
+        <div>
+          <p className="text-xs font-black" style={{ color: "oklch(0.2 0.03 255)" }}>25 דקות פנויות</p>
+          <p className="text-xs" style={{ color: "oklch(0.62 0.03 255)" }}>שלישי 17:30</p>
+        </div>
+      </div>
+
+      {/* Floating card - bottom left: activity */}
+      <div
+        className="absolute bottom-5 left-5 bg-white rounded-2xl shadow-lg p-3 flex items-center gap-2.5"
+        style={{ boxShadow: "0 4px 18px oklch(0 0 0 / 0.09)" }}
+      >
+        <div
+          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{ background: "oklch(0.92 0.06 60 / 0.25)" }}
+        >
+          <Sparkles className="w-3.5 h-3.5" style={{ color: "oklch(0.60 0.18 42)" }} />
+        </div>
+        <div>
+          <p className="text-xs font-black" style={{ color: "oklch(0.2 0.03 255)" }}>אפס הכנה</p>
+          <p className="text-xs" style={{ color: "oklch(0.62 0.03 255)" }}>בניית לגו</p>
+        </div>
+      </div>
+
+      {/* Floating pill - score */}
+      <div
+        className="absolute top-5 left-1/2 -translate-x-1/2 bg-white rounded-2xl shadow-lg px-4 py-2"
+        style={{ boxShadow: "0 4px 18px oklch(0 0 0 / 0.09)" }}
+      >
+        <p className="text-sm font-black text-center" style={{ color: "oklch(0.50 0.14 140)" }}>72/100</p>
+        <p className="text-xs text-center" style={{ color: "oklch(0.62 0.03 255)" }}>ציון חיבור</p>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// SCREEN 1 - Welcome / Hero
+// ============================================================
+function WelcomeScreen({ onStart }: { onStart: () => void }) {
+  return (
+    <div className="min-h-screen flex flex-col" style={{ background: "oklch(0.97 0.01 85)" }}>
+      <NavBar />
+      <HeroIllustration />
+
+      <div className="flex-1 flex flex-col px-6 pt-6 pb-10">
+        {/* Step dots */}
+        <div className="mb-6 max-w-sm mx-auto w-full">
+          <StepBar current={1} />
+        </div>
+
+        {/* Emotional headline */}
+        <div className="text-right mb-7 flex-1">
+          <h1
+            className="text-[28px] font-black leading-tight mb-3"
+            style={{ color: "oklch(0.18 0.03 255)" }}
+          >
+            אתה הורה טוב.
+            <br />
+            <span className="text-gradient">אתה פשוט צריך מישהו שיאצור את הזמן.</span>
+          </h1>
+          <p className="text-sm leading-relaxed" style={{ color: "oklch(0.52 0.03 255)" }}>
+            BondFlow סורק את הלו"ז שלך ומוצא רגעים קטנים שאפשר למלא באהבה - בלי מאמץ ובלי תכנון.
+          </p>
+        </div>
+
+        {/* CTAs */}
+        <div className="flex flex-col gap-3 mt-auto">
+          <PrimaryButton label="בואו נתחיל" onClick={onStart} />
+          <p className="text-center text-sm" style={{ color: "oklch(0.62 0.03 255)" }}>
+            יש לך כבר חשבון?{" "}
+            <Link
+              href="/auth"
+              className="font-bold"
+              style={{ color: "oklch(0.50 0.14 140)" }}
+            >
+              כניסה לחשבון
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// SCREEN 2 - Family Setup
+// ============================================================
+function FamilySetup({
+  data, setData, onNext, onBack, onSkip,
+}: {
+  data: FormData;
+  setData: (d: FormData) => void;
+  onNext: () => void;
+  onBack: () => void;
+  onSkip: () => void;
+}) {
+  const canNext =
+    data.children.length > 0 && data.children.some((c) => c.name.trim().length > 0);
+
   const addChild = () => {
+    if (data.children.length >= 3) return;
     setData({
       ...data,
-      children: [...data.children, { id: Date.now(), name: "", age: "", interests: [] }],
+      children: [
+        ...data.children,
+        { id: Date.now(), name: "", ageGroup: "", interests: [] },
+      ],
     });
   };
 
-  const updateChild = (id: number, field: keyof Child, value: string | string[]) => {
-    setData({
-      ...data,
-      children: data.children.map((c) => (c.id === id ? { ...c, [field]: value } : c)),
-    });
-  };
-
-  const removeChild = (id: number) => {
+  const removeChild = (id: number) =>
     setData({ ...data, children: data.children.filter((c) => c.id !== id) });
-  };
+
+  const updateChild = (id: number, field: keyof Child, val: string | string[]) =>
+    setData({
+      ...data,
+      children: data.children.map((c) => (c.id === id ? { ...c, [field]: val } : c)),
+    });
 
   const toggleInterest = (childId: number, interest: string) => {
     const child = data.children.find((c) => c.id === childId)!;
-    const newInterests = child.interests.includes(interest)
+    const next = child.interests.includes(interest)
       ? child.interests.filter((i) => i !== interest)
-      : [...child.interests, interest];
-    updateChild(childId, "interests", newInterests);
+      : child.interests.length < 5
+        ? [...child.interests, interest]
+        : child.interests;
+    updateChild(childId, "interests", next);
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="text-right">
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: "oklch(0.92 0.06 60 / 0.2)" }}>
-          <Users className="w-7 h-7" style={{ color: "oklch(0.72 0.18 42)" }} />
+    <div className="min-h-screen" style={{ background: "oklch(0.97 0.01 85)" }}>
+      <NavBar showBack onBack={onBack} />
+
+      <div className="px-6 pb-10">
+        {/* Progress */}
+        <div className="mb-6">
+          <StepBar current={2} />
         </div>
-        <h2 className="text-3xl font-black mb-2" style={{ color: "oklch(0.2 0.03 255)" }}>
-          ספר לנו על הילדים שלך
-        </h2>
-        <p className="text-sm" style={{ color: "oklch(0.55 0.03 255)" }}>
-          ככל שנדע יותר - ההצעות יהיו יותר מדויקות.
-        </p>
-      </div>
 
-      <div className="flex flex-col gap-5">
-        {data.children.map((child, idx) => (
+        {/* Title */}
+        <div className="text-right mb-5">
           <div
-            key={child.id}
-            className="rounded-3xl p-5 border-2"
-            style={{ borderColor: "oklch(0.9 0.02 85)", background: "oklch(0.98 0.01 85)" }}
+            className="w-11 h-11 rounded-2xl flex items-center justify-center mb-3"
+            style={{ background: "oklch(0.93 0.06 60 / 0.28)" }}
           >
-            <div className="flex items-center justify-between mb-4">
-              <button
-                onClick={() => removeChild(child.id)}
-                className="p-1.5 rounded-xl transition-colors hover:bg-red-50"
-                style={{ color: "oklch(0.6 0.15 25)" }}
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-              <span className="font-black text-sm" style={{ color: "oklch(0.45 0.14 140)" }}>
-                ילד {idx + 1}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <input
-                type="number"
-                placeholder="גיל"
-                value={child.age}
-                onChange={(e) => updateChild(child.id, "age", e.target.value)}
-                min="0" max="18"
-                className={inputClass}
-                style={{ borderColor: "oklch(0.88 0.02 85)" }}
-              />
-              <input
-                type="text"
-                placeholder="שם הילד"
-                value={child.name}
-                onChange={(e) => updateChild(child.id, "name", e.target.value)}
-                className={inputClass}
-                style={{ borderColor: "oklch(0.88 0.02 85)" }}
-              />
-            </div>
-
-            <div className="text-right">
-              <p className="text-xs font-bold mb-2.5" style={{ color: "oklch(0.5 0.03 255)" }}>
-                תחביבים (בחר כמה שרוצה):
-              </p>
-              <div className="flex flex-wrap gap-2 justify-end">
-                {INTEREST_OPTIONS.map((interest) => {
-                  const selected = child.interests.includes(interest);
-                  return (
-                    <button
-                      key={interest}
-                      onClick={() => toggleInterest(child.id, interest)}
-                      className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95"
-                      style={{
-                        background: selected ? "oklch(0.65 0.14 140)" : "white",
-                        color: selected ? "white" : "oklch(0.5 0.03 255)",
-                        border: `1.5px solid ${selected ? "oklch(0.65 0.14 140)" : "oklch(0.88 0.02 85)"}`,
-                      }}
-                    >
-                      {interest}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <Users className="w-5.5 h-5.5" style={{ color: "oklch(0.65 0.18 42)" }} />
           </div>
-        ))}
-      </div>
-
-      <button
-        onClick={addChild}
-        className="flex items-center justify-center gap-2 w-full rounded-2xl py-3.5 text-sm font-bold border-2 border-dashed transition-all hover:border-[oklch(0.65_0.14_140)] hover:text-[oklch(0.65_0.14_140)]"
-        style={{ borderColor: "oklch(0.85 0.03 140)", color: "oklch(0.65 0.14 140)" }}
-      >
-        <Plus className="w-4 h-4" />
-        הוסף ילד
-      </button>
-    </div>
-  );
-}
-
-// ---- Step 3: Connect calendar ----
-function Step3({ data, setData }: { data: FormData; setData: (d: FormData) => void }) {
-  const options = [
-    {
-      id: "google" as const,
-      label: "Google Calendar",
-      desc: "מתאים לאנדרואיד ו-Gmail",
-      icon: (
-        <svg className="w-7 h-7" viewBox="0 0 24 24">
-          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-        </svg>
-      ),
-    },
-    {
-      id: "apple" as const,
-      label: "Apple Calendar",
-      desc: "מתאים לאייפון ו-Mac",
-      icon: (
-        <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor" style={{ color: "oklch(0.3 0 0)" }}>
-          <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-        </svg>
-      ),
-    },
-    {
-      id: "manual" as const,
-      label: "אזין ידנית",
-      desc: "אגיד לBondFlow מתי אני פנוי",
-      icon: <Clock className="w-7 h-7" style={{ color: "oklch(0.65 0.14 140)" }} />,
-    },
-  ];
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="text-right">
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: "oklch(0.90 0.06 255 / 0.15)" }}>
-          <CalendarDays className="w-7 h-7" style={{ color: "oklch(0.55 0.18 255)" }} />
+          <h2 className="text-2xl font-black mb-1.5" style={{ color: "oklch(0.18 0.03 255)" }}>
+            ספרו לנו על הילדים שלכם
+          </h2>
+          <p className="text-sm" style={{ color: "oklch(0.55 0.03 255)" }}>
+            ככל שנדע יותר - ההצעות יהיו אישיות יותר.
+          </p>
         </div>
-        <h2 className="text-3xl font-black mb-2" style={{ color: "oklch(0.2 0.03 255)" }}>
-          חבר את היומן שלך
-        </h2>
-        <p className="text-sm leading-relaxed" style={{ color: "oklch(0.55 0.03 255)" }}>
-          BondFlow צריכה לראות את היומן שלך כדי למצוא חלונות זמן אמיתיים.
-          אנחנו לא שומרים פרטי אירועים - רק בודקים מתי אתה פנוי.
-        </p>
-      </div>
 
-      <div className="flex flex-col gap-3">
-        {options.map((opt) => {
-          const selected = data.calendarConnected === opt.id;
-          return (
-            <button
-              key={opt.id}
-              onClick={() => setData({ ...data, calendarConnected: opt.id })}
-              className="flex items-center gap-4 rounded-2xl p-4 border-2 text-right transition-all active:scale-[0.98]"
-              style={{
-                borderColor: selected ? "oklch(0.65 0.14 140)" : "oklch(0.9 0.02 85)",
-                background: selected ? "oklch(0.88 0.08 140 / 0.12)" : "white",
-              }}
-            >
+        {/* Child cards */}
+        <div className="flex flex-col gap-4 mb-4">
+          {data.children.map((child, idx) => {
+            const colors = CHILD_COLORS[idx % CHILD_COLORS.length];
+            const initial = child.name.trim() ? child.name.trim()[0] : "?";
+
+            return (
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: selected ? "oklch(0.88 0.08 140 / 0.2)" : "oklch(0.96 0.01 85)" }}
+                key={child.id}
+                className="rounded-3xl p-5 border-2"
+                style={{ background: "white", borderColor: "oklch(0.91 0.02 85)" }}
               >
-                {opt.icon}
-              </div>
-              <div className="flex-1">
-                <p className="font-bold text-sm" style={{ color: "oklch(0.25 0.03 255)" }}>{opt.label}</p>
-                <p className="text-xs mt-0.5" style={{ color: "oklch(0.55 0.03 255)" }}>{opt.desc}</p>
-              </div>
-              <div
-                className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0"
-                style={{
-                  borderColor: selected ? "oklch(0.65 0.14 140)" : "oklch(0.8 0.02 85)",
-                  background: selected ? "oklch(0.65 0.14 140)" : "transparent",
-                }}
-              >
-                {selected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+                {/* Card header */}
+                <div className="flex items-center justify-between mb-4">
+                  {data.children.length > 1 && (
+                    <button
+                      onClick={() => removeChild(child.id)}
+                      className="p-1.5 rounded-xl transition-colors"
+                      style={{ color: "oklch(0.60 0.12 25)" }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                  <div className={`flex items-center gap-2 ${data.children.length <= 1 ? "mr-auto" : ""}`}>
+                    <span className="text-sm font-bold" style={{ color: "oklch(0.48 0.03 255)" }}>
+                      ילד {idx + 1}
+                    </span>
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center font-black text-white text-sm"
+                      style={{ background: colors.accent }}
+                    >
+                      {initial}
+                    </div>
+                  </div>
+                </div>
 
-      <div
-        className="rounded-2xl p-4 flex items-start gap-3"
-        style={{ background: "oklch(0.88 0.08 140 / 0.12)", border: "1px solid oklch(0.65 0.14 140 / 0.2)" }}
-      >
-        <Lock className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "oklch(0.65 0.14 140)" }} />
-        <p className="text-xs leading-relaxed text-right" style={{ color: "oklch(0.5 0.08 140)" }}>
-          אנחנו לא קוראים את תוכן האירועים שלך - רק בודקים מתי יש לך זמן פנוי. הנתונים לא נמכרים לאף אחד.
-        </p>
-      </div>
-    </div>
-  );
-}
+                {/* Name input */}
+                <input
+                  type="text"
+                  placeholder="שם הילד"
+                  value={child.name}
+                  onChange={(e) => updateChild(child.id, "name", e.target.value)}
+                  className="w-full rounded-2xl px-4 py-3 text-sm font-medium outline-none transition-all mb-4 text-right"
+                  style={{
+                    background: "oklch(0.97 0.01 85)",
+                    border: "2px solid oklch(0.90 0.02 85)",
+                    color: "oklch(0.2 0.03 255)",
+                  }}
+                />
 
-// ---- Step 4: Availability ----
-function Step4({ data, setData }: { data: FormData; setData: (d: FormData) => void }) {
-  const toggle = (id: string) => {
-    const newSlots = data.availableSlots.includes(id)
-      ? data.availableSlots.filter((s) => s !== id)
-      : [...data.availableSlots, id];
-    setData({ ...data, availableSlots: newSlots });
-  };
+                {/* Age group picker */}
+                <div className="mb-4">
+                  <p className="text-xs font-bold text-right mb-2.5" style={{ color: "oklch(0.52 0.03 255)" }}>
+                    גיל:
+                  </p>
+                  <div className="flex gap-2 flex-row-reverse flex-wrap">
+                    {AGE_GROUPS.map((ag) => {
+                      const sel = child.ageGroup === ag;
+                      return (
+                        <button
+                          key={ag}
+                          onClick={() => updateChild(child.id, "ageGroup", ag)}
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95"
+                          style={{
+                            background: sel ? colors.accent : "oklch(0.95 0.01 85)",
+                            color: sel ? "white" : "oklch(0.48 0.03 255)",
+                            border: `1.5px solid ${sel ? colors.accent : "oklch(0.88 0.02 85)"}`,
+                          }}
+                        >
+                          {ag}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="text-right">
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: "oklch(0.92 0.06 60 / 0.2)" }}>
-          <Timer className="w-7 h-7" style={{ color: "oklch(0.72 0.18 42)" }} />
-        </div>
-        <h2 className="text-3xl font-black mb-2" style={{ color: "oklch(0.2 0.03 255)" }}>
-          מתי אתה בדרך כלל פנוי?
-        </h2>
-        <p className="text-sm" style={{ color: "oklch(0.55 0.03 255)" }}>
-          זה עוזר לנו להציע פעילויות בזמנים שיש סיכוי שיתפנה לך.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        {TIME_SLOTS.map((slot) => {
-          const selected = data.availableSlots.includes(slot.id);
-          return (
-            <button
-              key={slot.id}
-              onClick={() => toggle(slot.id)}
-              className="rounded-2xl p-4 text-right transition-all active:scale-95 border-2 flex flex-col gap-1"
-              style={{
-                borderColor: selected ? "oklch(0.65 0.14 140)" : "oklch(0.9 0.02 85)",
-                background: selected ? "oklch(0.88 0.08 140 / 0.12)" : "white",
-              }}
-            >
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center mb-1"
-                style={{ background: selected ? "oklch(0.65 0.14 140 / 0.2)" : "oklch(0.95 0.02 85)" }}
-              >
-                <Clock className="w-3.5 h-3.5" style={{ color: selected ? "oklch(0.55 0.14 140)" : "oklch(0.6 0.03 255)" }} />
-              </div>
-              <p className="text-xs font-black leading-snug" style={{ color: selected ? "oklch(0.45 0.14 140)" : "oklch(0.35 0.03 255)" }}>
-                {slot.label}
-              </p>
-              <p className="text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>{slot.sub}</p>
-            </button>
-          );
-        })}
-      </div>
-
-      {data.availableSlots.length > 0 && (
-        <p className="text-right text-sm font-semibold" style={{ color: "oklch(0.65 0.14 140)" }}>
-          בחרת {data.availableSlots.length} זמנים - מצוין!
-        </p>
-      )}
-    </div>
-  );
-}
-
-// ---- Step 5: Done ----
-function Step5({ data }: { data: FormData }) {
-  const firstName = data.parentName.split(" ")[0];
-  const childName = data.children[0]?.name || "הילד שלך";
-
-  const suggestions = [
-    {
-      IconComp: Blocks,
-      title: `בניית לגו עם ${childName}`,
-      time: "שלישי - 17:30 - 18:00",
-      prep: "אפס הכנה",
-      color: "oklch(0.88 0.08 140 / 0.2)",
-      accent: "oklch(0.55 0.14 140)",
-      iconColor: "oklch(0.55 0.14 140)",
-    },
-    {
-      IconComp: Sparkles,
-      title: "ציור חופשי ביחד",
-      time: "חמישי - 18:30 - 19:00",
-      prep: "רק ניירות וצבעים",
-      color: "oklch(0.92 0.06 60 / 0.25)",
-      accent: "oklch(0.55 0.15 42)",
-      iconColor: "oklch(0.55 0.15 42)",
-    },
-    {
-      IconComp: Clock,
-      title: "קריאת סיפור לפני שינה",
-      time: "יום ראשון - 20:00",
-      prep: "ספר אחד - 15 דקות",
-      color: "oklch(0.90 0.06 255 / 0.15)",
-      accent: "oklch(0.5 0.18 255)",
-      iconColor: "oklch(0.5 0.18 255)",
-    },
-  ];
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="text-center">
-        <div className="w-16 h-16 rounded-2xl gradient-cta flex items-center justify-center mx-auto mb-4 shadow-lg" style={{ boxShadow: "0 8px 24px oklch(0.65 0.14 140 / 0.35)" }}>
-          <PartyPopper className="w-8 h-8 text-white" />
-        </div>
-        <h2 className="text-3xl font-black mb-2" style={{ color: "oklch(0.2 0.03 255)" }}>
-          {firstName}, BondFlow מוכן!
-        </h2>
-        <p className="text-sm leading-relaxed" style={{ color: "oklch(0.55 0.03 255)" }}>
-          מצאנו 3 רגעים אפשריים עבורך השבוע. לחץ על אחד כדי לחסום אותו.
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-3">
-        {suggestions.map((s, i) => {
-          const IconComp = s.IconComp;
-          return (
-          <div
-            key={i}
-            className="rounded-2xl p-4 border cursor-pointer transition-all active:scale-[0.98] hover:shadow-md"
-            style={{ background: s.color, borderColor: `${s.accent}30` }}
-          >
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${s.accent}20` }}>
-                <IconComp className="w-5 h-5" style={{ color: s.iconColor }} />
-              </div>
-              <div className="flex-1 text-right">
-                <p className="font-black text-base mb-1" style={{ color: "oklch(0.2 0.03 255)" }}>{s.title}</p>
-                <div className="flex items-center justify-end gap-3">
-                  <span className="text-xs font-medium" style={{ color: s.accent }}>{s.prep}</span>
-                  <span className="text-xs" style={{ color: "oklch(0.55 0.03 255)" }}>{s.time}</span>
+                {/* Interests */}
+                <div>
+                  <p className="text-xs font-bold text-right mb-2.5" style={{ color: "oklch(0.52 0.03 255)" }}>
+                    תחביבים (עד 5):
+                  </p>
+                  <div className="flex flex-wrap gap-2 justify-end">
+                    {INTEREST_OPTIONS.map((interest) => {
+                      const sel = child.interests.includes(interest);
+                      return (
+                        <button
+                          key={interest}
+                          onClick={() => toggleInterest(child.id, interest)}
+                          className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                          style={{
+                            background: sel ? colors.accent : "white",
+                            color: sel ? "white" : "oklch(0.52 0.03 255)",
+                            border: `1.5px solid ${sel ? colors.accent : "oklch(0.88 0.02 85)"}`,
+                          }}
+                        >
+                          {interest}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-            </div>
-            <button
-              className="mt-3 w-full rounded-xl py-2 text-xs font-bold text-white gradient-cta"
-            >
-              חסום את הזמן הזה
-            </button>
-          </div>
-          );
-        })}
+            );
+          })}
+        </div>
+
+        {/* Add child button */}
+        {data.children.length < 3 && (
+          <button
+            onClick={addChild}
+            className="flex items-center justify-center gap-2 w-full rounded-2xl py-3.5 text-sm font-bold border-2 border-dashed transition-all mb-5 hover:opacity-75"
+            style={{
+              borderColor: "oklch(0.80 0.06 140 / 0.5)",
+              color: "oklch(0.55 0.14 140)",
+            }}
+          >
+            <Plus className="w-4 h-4" />
+            הוסף ילד נוסף
+          </button>
+        )}
+
+        {/* Next + skip */}
+        <PrimaryButton label="המשך" onClick={onNext} disabled={!canNext} />
+        <div className="mt-4 text-center">
+          <button
+            onClick={onSkip}
+            className="text-xs font-medium transition-opacity hover:opacity-70"
+            style={{ color: "oklch(0.68 0.03 255)" }}
+          >
+            דלג לעכשיו
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-// ---- Main flow ----
-const STEP_TITLES = [
-  "שלום!",
-  "הילדים שלך",
-  "יומן",
-  "זמינות",
-  "מוכן!",
-];
+// ============================================================
+// SCREEN 3 - Connect Calendar
+// ============================================================
+function CalendarConnect({
+  data, setData, onFinish, onBack,
+}: {
+  data: FormData;
+  setData: (d: FormData) => void;
+  onFinish: () => void;
+  onBack: () => void;
+}) {
+  const GoogleLogo = () => (
+    <svg className="w-6 h-6" viewBox="0 0 24 24">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+    </svg>
+  );
 
-export default function OnboardingFlow() {
-  const router = useRouter();
-  const [step, setStep] = useState(1);
-  const [data, setData] = useState<FormData>({
-    parentName: "",
-    children: [{ id: 1, name: "", age: "", interests: [] }],
-    calendarConnected: null,
-    availableSlots: [],
-  });
+  const AppleLogo = () => (
+    <svg className="w-6 h-6" viewBox="0 0 24 24" fill="white">
+      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
+    </svg>
+  );
 
-  const canNext = () => {
-    if (step === 1) return data.parentName.trim().length > 0;
-    if (step === 2) return data.children.length > 0 && data.children.every((c) => c.name && c.age);
-    if (step === 3) return data.calendarConnected !== null;
-    if (step === 4) return data.availableSlots.length > 0;
-    return true;
+  const CalendarOption = ({
+    id, label, desc, logoEl, darkBg = false,
+  }: {
+    id: "google" | "apple";
+    label: string;
+    desc: string;
+    logoEl: React.ReactNode;
+    darkBg?: boolean;
+  }) => {
+    const selected = data.calendarConnected === id;
+    return (
+      <button
+        onClick={() => setData({ ...data, calendarConnected: id })}
+        className="w-full rounded-2xl p-4 border-2 flex items-center gap-4 text-right transition-all active:scale-[0.98]"
+        style={{
+          background: selected ? "oklch(0.94 0.04 140 / 0.4)" : "white",
+          borderColor: selected ? "oklch(0.65 0.14 140)" : "oklch(0.90 0.02 85)",
+          boxShadow: selected
+            ? "0 4px 18px oklch(0.65 0.14 140 / 0.15)"
+            : "0 2px 8px oklch(0 0 0 / 0.04)",
+        }}
+      >
+        <div
+          className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ background: darkBg ? "oklch(0.12 0 0)" : "oklch(0.96 0.01 85)" }}
+        >
+          {logoEl}
+        </div>
+        <div className="flex-1">
+          <p className="font-bold text-sm" style={{ color: "oklch(0.22 0.03 255)" }}>{label}</p>
+          <p className="text-xs mt-0.5" style={{ color: "oklch(0.58 0.03 255)" }}>{desc}</p>
+        </div>
+        <div
+          className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+          style={{
+            borderColor: selected ? "oklch(0.65 0.14 140)" : "oklch(0.82 0.02 85)",
+            background: selected ? "oklch(0.65 0.14 140)" : "transparent",
+          }}
+        >
+          {selected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+        </div>
+      </button>
+    );
   };
 
-  const next = () => {
-    if (step < TOTAL_STEPS) setStep(step + 1);
+  return (
+    <div className="min-h-screen" style={{ background: "oklch(0.97 0.01 85)" }}>
+      <NavBar showBack onBack={onBack} />
+
+      <div className="px-6 pb-10">
+        {/* Progress */}
+        <div className="mb-6">
+          <StepBar current={3} />
+        </div>
+
+        {/* Title */}
+        <div className="text-right mb-6">
+          <div
+            className="w-11 h-11 rounded-2xl flex items-center justify-center mb-3"
+            style={{ background: "oklch(0.90 0.06 255 / 0.18)" }}
+          >
+            <CalendarDays className="w-5.5 h-5.5" style={{ color: "oklch(0.52 0.18 255)" }} />
+          </div>
+          <h2 className="text-2xl font-black mb-2" style={{ color: "oklch(0.18 0.03 255)" }}>
+            חברו את היומן שלכם
+          </h2>
+          <p className="text-sm leading-relaxed" style={{ color: "oklch(0.52 0.03 255)" }}>
+            BondFlow יסרוק את הלו"ז וימצא חלונות קטנים של 15-60 דקות שאפשר למלא ברגעים משפחתיים אמיתיים.
+          </p>
+        </div>
+
+        {/* Calendar options */}
+        <div className="flex flex-col gap-3 mb-5">
+          <CalendarOption
+            id="google"
+            label="חבר Google Calendar"
+            desc="מתאים לאנדרואיד ו-Gmail"
+            logoEl={<GoogleLogo />}
+          />
+          <CalendarOption
+            id="apple"
+            label="חבר Apple Calendar"
+            desc="מתאים לאייפון ו-Mac"
+            logoEl={<AppleLogo />}
+            darkBg
+          />
+        </div>
+
+        {/* Trust badges */}
+        <div
+          className="rounded-2xl p-4 mb-6 flex items-start gap-3 flex-row-reverse"
+          style={{
+            background: "oklch(0.94 0.04 140 / 0.35)",
+            border: "1px solid oklch(0.80 0.07 140 / 0.35)",
+          }}
+        >
+          <Lock className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "oklch(0.50 0.12 140)" }} />
+          <div className="flex flex-col gap-1.5">
+            {[
+              "הנתונים שלכם מאובטחים בהצפנה מלאה",
+              "לא משתפים עם אף גורם חיצוני",
+              "רק בודקים מתי אתם פנויים - לא מה הפגישה",
+            ].map((item, i) => (
+              <div key={i} className="flex items-center gap-2 flex-row-reverse">
+                <div
+                  className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ background: "oklch(0.65 0.14 140)" }}
+                >
+                  <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                </div>
+                <p className="text-xs text-right" style={{ color: "oklch(0.40 0.08 140)" }}>{item}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Finish CTA */}
+        <PrimaryButton
+          label={data.calendarConnected ? "סיום והתחל להשתמש" : "המשך בלי יומן"}
+          onClick={onFinish}
+        />
+
+        {/* Skip */}
+        {!data.calendarConnected && (
+          <div className="mt-4 text-center">
+            <button
+              onClick={onFinish}
+              className="text-xs font-medium transition-opacity hover:opacity-70"
+              style={{ color: "oklch(0.68 0.03 255)" }}
+            >
+              דלג לעכשיו - אחבר יומן מאוחר יותר
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// ROOT - orchestrates the 3 screens
+// ============================================================
+export default function OnboardingFlow() {
+  const router = useRouter();
+  const [step, setStep] = useState<StepNum>(1);
+  const [data, setData] = useState<FormData>({
+    children: [{ id: 1, name: "", ageGroup: "", interests: [] }],
+    calendarConnected: null,
+  });
+
+  const advance = () => {
+    if (step < 3) setStep((s) => (s + 1) as StepNum);
     else router.push("/dashboard");
   };
 
-  const back = () => {
-    if (step > 1) setStep(step - 1);
+  const retreat = () => {
+    if (step > 1) setStep((s) => (s - 1) as StepNum);
   };
 
+  if (step === 1)
+    return <WelcomeScreen onStart={advance} />;
+
+  if (step === 2)
+    return (
+      <FamilySetup
+        data={data}
+        setData={setData}
+        onNext={advance}
+        onBack={retreat}
+        onSkip={advance}
+      />
+    );
+
   return (
-    <div className="min-h-screen gradient-hero flex flex-col items-center justify-center px-4 py-12 relative overflow-hidden">
-      {/* Blobs */}
-      <div className="absolute top-10 left-10 w-64 h-64 rounded-full opacity-20 blur-3xl pointer-events-none" style={{ background: "oklch(0.65 0.14 140)" }} />
-      <div className="absolute bottom-10 right-10 w-80 h-80 rounded-full opacity-15 blur-3xl pointer-events-none" style={{ background: "oklch(0.72 0.18 42)" }} />
-
-      <div className="relative z-10 w-full max-w-md">
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-2.5 mb-6">
-          <div className="w-9 h-9 rounded-2xl gradient-cta flex items-center justify-center shadow-lg" style={{ boxShadow: "0 8px 20px oklch(0.65 0.14 140 / 0.35)" }}>
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
-          <span className="font-black text-xl" style={{ color: "oklch(0.2 0.05 255)" }}>BondFlow</span>
-        </div>
-
-        {/* Card */}
-        <div className="bg-white rounded-3xl shadow-2xl p-7 sm:p-9" style={{ boxShadow: "0 24px 64px oklch(0.28 0.05 255 / 0.12)" }}>
-          {/* Step info */}
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold" style={{ color: "oklch(0.65 0.14 140)" }}>
-              {STEP_TITLES[step - 1]}
-            </span>
-            <span className="text-xs font-medium" style={{ color: "oklch(0.65 0.03 255)" }}>
-              {step} / {TOTAL_STEPS}
-            </span>
-          </div>
-
-          <StepBar current={step} total={TOTAL_STEPS} />
-
-          {/* Step content */}
-          <div className="min-h-[360px]">
-            {step === 1 && <Step1 data={data} setData={setData} />}
-            {step === 2 && <Step2 data={data} setData={setData} />}
-            {step === 3 && <Step3 data={data} setData={setData} />}
-            {step === 4 && <Step4 data={data} setData={setData} />}
-            {step === 5 && <Step5 data={data} />}
-          </div>
-
-          {/* Navigation */}
-          <div className="flex items-center gap-3 mt-8">
-            {step > 1 && step < TOTAL_STEPS && (
-              <Button
-                variant="outline"
-                onClick={back}
-                className="rounded-2xl h-12 px-5 font-semibold border-2 flex items-center gap-1.5"
-                style={{ borderColor: "oklch(0.88 0.02 85)", color: "oklch(0.5 0.03 255)" }}
-              >
-                <ChevronLeft className="w-4 h-4" />
-                חזור
-              </Button>
-            )}
-            <Button
-              onClick={next}
-              disabled={!canNext()}
-              className={`flex-1 gradient-cta text-white border-0 hover:opacity-90 rounded-2xl h-12 font-black text-sm disabled:opacity-40 ${step === TOTAL_STEPS ? "" : ""}`}
-              style={{ boxShadow: canNext() ? "0 6px 20px oklch(0.65 0.14 140 / 0.35)" : "none" }}
-            >
-              {step === TOTAL_STEPS ? (
-                <>
-                  <Sparkles className="w-4 h-4 ml-2" />
-                  כניסה לאפליקציה
-                </>
-              ) : (
-                "המשך"
-              )}
-            </Button>
-          </div>
-
-          {/* Skip */}
-          {step < TOTAL_STEPS && (
-            <div className="mt-4 text-center">
-              <button
-                onClick={next}
-                className="text-xs font-medium"
-                style={{ color: "oklch(0.65 0.03 255)" }}
-              >
-                דלג לעכשיו
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    <CalendarConnect
+      data={data}
+      setData={setData}
+      onFinish={advance}
+      onBack={retreat}
+    />
   );
 }
