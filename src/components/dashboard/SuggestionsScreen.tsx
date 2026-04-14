@@ -424,11 +424,11 @@ export default function SuggestionsScreen() {
         </div>
       )}
 
-      {/* Empty state — auto-refresh fires after 600ms so this shows only briefly */}
+      {/* Empty state */}
       {filtered.length === 0 && !refreshing && (
         <div className="rounded-2xl p-8 text-center border" style={{ background: "white", borderColor: "oklch(0.93 0.02 85)" }}>
           {allItems.length > 0 && dismissed.size + saved.size >= allItems.length ? (
-            // All exhausted — show "generating…" (auto-refresh will kick in)
+            // All exhausted — auto-refresh will fire shortly
             <div className="flex flex-col items-center gap-3">
               <div className="animate-pulse">
                 <Sparkles className="w-8 h-8" style={{ color: "oklch(0.65 0.14 140)" }} />
@@ -437,11 +437,24 @@ export default function SuggestionsScreen() {
               <p className="text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>רגע אחד</p>
             </div>
           ) : (
-            // Active filter hiding results
-            <div className="flex flex-col items-center gap-2">
+            // Active filter is hiding results — offer to clear it
+            <div className="flex flex-col items-center gap-3">
               <Sparkles className="w-7 h-7" style={{ color: "oklch(0.65 0.14 140)" }} />
               <p className="font-black text-sm" style={{ color: "oklch(0.2 0.03 255)" }}>אין הצעות עם הסינון הזה</p>
-              <p className="text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>נסה לשנות את הסינון</p>
+              <p className="text-xs mb-1" style={{ color: "oklch(0.6 0.03 255)" }}>
+                {placeFilter !== "all" || kidFilter !== "all"
+                  ? "נסה להסיר את הסינון כדי לראות את כל ההצעות"
+                  : "נסה לרענן את ההצעות"}
+              </p>
+              {(placeFilter !== "all" || kidFilter !== "all") && (
+                <button
+                  onClick={() => { setPlaceFilter("all"); setKidFilter("all"); }}
+                  className="rounded-xl px-4 py-2 text-sm font-bold text-white"
+                  style={{ background: "linear-gradient(135deg, oklch(0.65 0.14 140), oklch(0.58 0.16 148))" }}
+                >
+                  הצג את כל ההצעות
+                </button>
+              )}
             </div>
           )}
         </div>

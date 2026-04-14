@@ -1,4 +1,4 @@
-// Raw fetch — no SDK, fully compatible with Vercel Edge Runtime
+import Anthropic from "@anthropic-ai/sdk";
 
 interface ChildProfile {
   id: string;
@@ -18,7 +18,7 @@ export interface GeneratedSuggestion {
   activity_type: string;
   accent_color: string;
   bg_color: string;
-  child_index: number; // 0-based index into the children array
+  child_index: number;
 }
 
 const SYSTEM_PROMPT = `אתה מומחה לפעילויות הורים-ילדים למשפחות ישראליות. אתה יוצר הצעות פעילויות מותאמות אישית שהורים יכולים לעשות עם ילדיהם.
@@ -32,9 +32,7 @@ const SYSTEM_PROMPT = `אתה מומחה לפעילויות הורים-ילדי�
 - accent_color ו-bg_color בפורמט oklch
 
 קטגוריות אפשריות: lego, drawing, reading, music, outdoor, sports, cooking, boardgame, science, art, conversation, roleplay, building, nature, baby, tech, dance, holiday
-
 activity_type אפשרי: creative, calm, energetic, outdoor
-
 ימים בעברית: ראשון, שני, שלישי, רביעי, חמישי, שישי, שבת
 
 צבעים לפי קטגוריה:
@@ -50,9 +48,9 @@ export async function generateAISuggestions(
   recentTitles: string[] = []
 ): Promise<GeneratedSuggestion[]> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY environment variable is not set");
-  }
+  if (!apiKey) throw new Error("ANTHROPIC_API_KEY not set");
+
+  const client = new Anthropic({ apiKey });
 
   const childrenDesc = children
     .map(
@@ -73,53 +71,29 @@ export async function generateAISuggestions(
 ${childrenDesc}${recentDesc}
 
 חשוב מאוד:
-- הפץ את ההצעות בין הילדים השונים כמה שניתן (ילד 1 וילד 2 מקבלים ~3 הצעות כל אחד)
+- הפץ את ההצעות בין הילדים השונים (כל ילד מקבל ~3 הצעות)
 - התאם כל פעילות לתחומי העניין הספציפיים של הילד
 - גיוון בין ימים (ראשון עד שישי) ושעות (16:00-20:30)
 - לפחות 2 פעילויות חוץ ו-2 פעילויות בבית
 
-החזר JSON בלבד, מערך של בדיוק 6 אובייקטים עם המפתחות:
+החזר JSON בלבד — מערך של בדיוק 6 אובייקטים עם המפתחות:
 title, description, duration_min, prep_min, time_slot, day_label, category, activity_type, accent_color, bg_color, child_index
 
 child_index הוא אינדקס הילד (0 עבור ילד ראשון, 1 עבור שני וכו').`;
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-beta": "prompt-caching-2024-07-31",
-    },
-    body: JSON.stringify({
-      model: "claude-haiku-4-5",
-      max_tokens: 2048,
-      system: [
-        {
-          type: "text",
-          text: SYSTEM_PROMPT,
-          cache_control: { type: "ephemeral" },
-        },
-      ],
-      messages: [{ role: "user", content: userPrompt }],
-    }),
+  // Use the SDK directly in Node.js serverless — most reliable approach
+  const response = await client.messages.create({
+    model: "claude-3-5-haiku-20241022",
+    max_tokens: 2048,
+    system: SYSTEM_PROMPT,
+    messages: [{ role: "user", content: userPrompt }],
   });
 
-  if (!res.ok) {
-    const errBody = await res.text();
-    throw new Error(`Anthropic API ${res.status}: ${errBody}`);
+  const textBlock = response.content.find((b) => b.type === "text");
+  if (!textBlock || textBlock.type !== "text") {
+    throw new Error("No text block in Claude response");
   }
 
-  const data = (await res.json()) as {
-    content: Array<{ type: string; text: string }>;
-  };
-
-  const textBlock = data.content.find((b) => b.type === "text");
-  if (!textBlock) {
-    throw new Error("No text block in Anthropic response");
-  }
-
-  // Extract JSON — Claude may wrap in ```json fences or add leading prose
   let raw = textBlock.text.trim();
   const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (fenceMatch) raw = fenceMatch[1].trim();
