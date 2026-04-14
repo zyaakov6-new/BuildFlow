@@ -113,22 +113,8 @@ export default function SettingsScreen() {
     setSettings((prev) => ({ ...prev, [key]: val }));
 
   return (
-    <div className="flex-1 overflow-y-auto pb-8">
-      {/* Page title */}
-      <div
-        className="sticky top-0 z-10 px-4 pt-12 pb-3"
-        style={{
-          background: "oklch(0.97 0.01 85 / 0.95)",
-          backdropFilter: "blur(12px)",
-          borderBottom: "1px solid oklch(0.92 0.02 85)",
-        }}
-      >
-        <h1 className="text-xl font-black text-right" style={{ color: "oklch(0.2 0.03 255)" }}>
-          הגדרות
-        </h1>
-      </div>
-
-      <div className="px-4 pt-4">
+    <div className="pb-8">
+      <div className="max-w-2xl mx-auto px-4 md:px-8 pt-6">
         {/* Notifications */}
         <Section title="התראות">
           <SettingRow

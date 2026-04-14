@@ -77,13 +77,13 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
         onClick={onClose}
       />
 
-      {/* Drawer - slides in from the RIGHT (RTL natural side) */}
+      {/* Drawer - slides in from the LEFT */}
       <div
-        className="fixed top-0 right-0 bottom-0 z-50 flex flex-col w-[300px] max-w-[85vw] transition-transform duration-300 ease-out"
+        className="fixed top-0 left-0 bottom-0 z-50 flex flex-col w-[300px] max-w-[85vw] transition-transform duration-300 ease-out"
         style={{
           background: "white",
-          transform: open ? "translateX(0)" : "translateX(100%)",
-          boxShadow: "-8px 0 40px oklch(0 0 0 / 0.15)",
+          transform: open ? "translateX(0)" : "translateX(-100%)",
+          boxShadow: "8px 0 40px oklch(0 0 0 / 0.15)",
         }}
       >
         {/* Header */}
