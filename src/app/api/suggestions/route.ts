@@ -495,12 +495,12 @@ export async function GET(request: Request) {
       .select("*")
       .eq("user_id", user.id)
       .eq("week_number", weekNumber)
-      .neq("status", "dismissed");
+      .eq("status", "pending");
 
     if (existing && existing.length > 0) {
       return Response.json({
         suggestions: existing,
-        _debug: { aiUsed: false, aiError: "cache hit — existing suggestions returned", keyPresent: !!process.env.ANTHROPIC_API_KEY },
+        _debug: { aiUsed: false, aiError: "cache hit — existing pending suggestions returned", keyPresent: !!process.env.ANTHROPIC_API_KEY },
       });
     }
   }
