@@ -8,19 +8,19 @@ import { Sparkles, Calendar, Heart, Star, CheckCircle2, Quote } from "lucide-rea
 export default function Hero() {
   return (
     <section className="relative min-h-screen gradient-hero flex items-center overflow-hidden pt-16">
-      {/* עיגולי רקע דקורטיביים */}
+      {/* עיגולי רקע דקורטיביים — hidden on small screens to avoid overflow */}
       <div
-        className="absolute top-20 left-10 w-72 h-72 rounded-full opacity-20 blur-3xl pointer-events-none"
+        className="hidden sm:block absolute top-20 left-10 w-72 h-72 rounded-full opacity-20 blur-3xl pointer-events-none"
         style={{ background: "oklch(0.65 0.14 140)" }}
       />
       <div
-        className="absolute bottom-20 right-10 w-96 h-96 rounded-full opacity-15 blur-3xl pointer-events-none"
+        className="hidden sm:block absolute bottom-20 right-10 w-96 h-96 rounded-full opacity-15 blur-3xl pointer-events-none"
         style={{ background: "oklch(0.72 0.18 42)" }}
       />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-20 grid lg:grid-cols-2 gap-12 items-center">
         {/* טקסט ראשי */}
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-6 min-w-0 overflow-hidden">
           <Badge
             variant="secondary"
             className="w-fit px-4 py-1.5 rounded-full text-sm font-semibold"
@@ -34,7 +34,7 @@ export default function Hero() {
             AI לזמן משפחתי - נבנה במיוחד להורים ישראלים
           </Badge>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black leading-[1.1] tracking-tight" style={{ color: "oklch(0.2 0.03 255)" }}>
+          <h1 className="text-[1.75rem] xs:text-4xl sm:text-5xl lg:text-6xl font-black leading-[1.15] tracking-tight break-words" style={{ color: "oklch(0.2 0.03 255)" }}>
             הילדים שלך לא צריכים{" "}
             <span className="text-gradient">עוד כסף.</span>
             <br />
