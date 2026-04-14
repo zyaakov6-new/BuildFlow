@@ -21,8 +21,8 @@ export interface GeneratedSuggestion {
   child_index: number;
 }
 
-// Map the stored slot keys → human-readable Hebrew for the prompt
-const SLOT_LABELS: Record<string, string> = {
+// Map manual slot keys → Hebrew labels (fallback when no Google Calendar)
+const MANUAL_SLOT_LABELS: Record<string, string> = {
   weekday_afternoon: "ימי חול אחה\"צ (15:30–17:00)",
   weekday_evening:   "ימי חול ערב (17:00–20:30)",
   friday_afternoon:  "יום שישי אחה\"צ (14:00–18:00)",
@@ -32,10 +32,18 @@ const SLOT_LABELS: Record<string, string> = {
   saturday_evening:  "שבת ערב (17:00–21:00)",
 };
 
-function buildScheduleNote(slots: string[]): string {
-  if (!slots || slots.length === 0) return "";
-  const labels = slots.map((s) => SLOT_LABELS[s] ?? s).join(", ");
-  return `\nזמני הפנאי של המשפחה השבוע (תתאם את time_slot ו-day_label לחלונות הזמן האלו בלבד):\n${labels}\n`;
+function buildScheduleNote(calendarWindows: string[], manualSlots: string[]): string {
+  // Calendar windows take priority (specific: "שלישי 17:00–19:30")
+  if (calendarWindows.length > 0) {
+    const lines = calendarWindows.map((w) => `• ${w}`).join("\n");
+    return `\nחלונות זמן פנויים לפי היומן של המשפחה השבוע — תבחר time_slot ו-day_label שנכנסים באחד מהחלונות הבאים:\n${lines}\n`;
+  }
+  // Fall back to manual slot labels
+  if (manualSlots.length > 0) {
+    const labels = manualSlots.map((s) => MANUAL_SLOT_LABELS[s] ?? s).join(", ");
+    return `\nזמני הפנאי המועדפים של המשפחה (תתאם את time_slot ו-day_label לחלונות הזמן האלו):\n${labels}\n`;
+  }
+  return "";
 }
 
 const SYSTEM_PROMPT = `אתה מומחה לפעילויות הורים-ילדים למשפחות ישראליות. אתה יוצר הצעות פעילויות מותאמות אישית שהורים יכולים לעשות עם ילדיהם.
@@ -79,7 +87,8 @@ activity_type: creative, calm, energetic, outdoor
 export async function generateAISuggestions(
   children: ChildProfile[],
   recentTitles: string[] = [],
-  freeTimeSlots: string[] = []
+  freeTimeSlots: string[] = [],        // manual slot keys from Settings
+  calendarWindows: string[] = [],      // specific windows from Google Calendar e.g. "שלישי 17:00–19:30"
 ): Promise<GeneratedSuggestion[]> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not set");
@@ -100,7 +109,7 @@ export async function generateAISuggestions(
       ? `\nפעילויות שנעשו לאחרונה (אל תחזור עליהן):\n${recentTitles.slice(0, 10).join(", ")}`
       : "";
 
-  const scheduleNote = buildScheduleNote(freeTimeSlots);
+  const scheduleNote = buildScheduleNote(calendarWindows, freeTimeSlots);
 
   const userPrompt = `צור 6 הצעות פעילויות מגוונות עבור הילדים הבאים:
 

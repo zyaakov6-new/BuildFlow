@@ -284,10 +284,11 @@ export default function SuggestionsScreen() {
     const filtersActive = placeFilter !== "all" || kidFilter !== "all";
 
     if (filtersActive) {
-      // Filters are hiding everything — auto-clear them
+      // Filters are hiding everything — clear filters AND generate fresh suggestions
       const t = setTimeout(() => {
         setPlaceFilter("all");
         setKidFilter("all");
+        handleRefreshRef.current();
       }, 700);
       return () => clearTimeout(t);
     }
@@ -466,18 +467,9 @@ export default function SuggestionsScreen() {
               <p className="font-black text-sm" style={{ color: "oklch(0.2 0.03 255)" }}>אין הצעות עם הסינון הזה</p>
               <p className="text-xs mb-1" style={{ color: "oklch(0.6 0.03 255)" }}>
                 {placeFilter !== "all" || kidFilter !== "all"
-                  ? "נסה להסיר את הסינון כדי לראות את כל ההצעות"
+                  ? "מייצר הצעות חדשות שמתאימות לסינון..."
                   : "נסה לרענן את ההצעות"}
               </p>
-              {(placeFilter !== "all" || kidFilter !== "all") && (
-                <button
-                  onClick={() => { setPlaceFilter("all"); setKidFilter("all"); }}
-                  className="rounded-xl px-4 py-2 text-sm font-bold text-white"
-                  style={{ background: "linear-gradient(135deg, oklch(0.65 0.14 140), oklch(0.58 0.16 148))" }}
-                >
-                  הצג את כל ההצעות
-                </button>
-              )}
             </div>
           )}
         </div>

@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 import { generateAISuggestions } from "@/lib/generateSuggestions";
+import { getCalendarFreeWindows } from "@/lib/googleCalendar";
 
 // Haiku responds in 1-3 s — easily within the 10 s serverless limit
 // No edge runtime needed; maxDuration helps on Vercel Pro if present
@@ -505,13 +506,36 @@ export async function GET(request: Request) {
     }
   }
 
-  // Fetch children + user profile (for free_time_slots) in parallel
+  // Fetch children + user profile (calendar token + manual slots) in parallel
   const [{ data: rawChildren }, { data: profile }] = await Promise.all([
     supabase.from("children").select("*").eq("user_id", user.id),
-    supabase.from("profiles").select("free_time_slots").eq("id", user.id).single(),
+    supabase.from("profiles")
+      .select("free_time_slots, google_calendar_token, google_calendar_refresh_token")
+      .eq("id", user.id)
+      .single(),
   ]);
   const children = rawChildren as ChildRow[] | null;
   const freeTimeSlots: string[] = (profile?.free_time_slots ?? []) as string[];
+
+  // Try to get live free windows from Google Calendar
+  let calendarWindows: string[] = [];
+  if (profile?.google_calendar_token) {
+    try {
+      calendarWindows = await getCalendarFreeWindows(
+        profile.google_calendar_token,
+        profile.google_calendar_refresh_token ?? null,
+        async (newToken) => {
+          // Persist refreshed token so next call doesn't need to refresh again
+          await supabase
+            .from("profiles")
+            .update({ google_calendar_token: newToken })
+            .eq("id", user.id);
+        },
+      );
+    } catch {
+      // Calendar unavailable — proceed without schedule constraint
+    }
+  }
 
   if (!children || children.length === 0) {
     return Response.json({ suggestions: [] });
@@ -560,7 +584,7 @@ export async function GET(request: Request) {
       interests: c.interests ?? [],
     }));
 
-    const aiSuggestions = await generateAISuggestions(childProfiles, recentTitles, freeTimeSlots);
+    const aiSuggestions = await generateAISuggestions(childProfiles, recentTitles, freeTimeSlots, calendarWindows);
 
     toInsert = aiSuggestions.map((s) => {
       const child = children[s.child_index] ?? children[0];
