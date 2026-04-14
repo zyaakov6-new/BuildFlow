@@ -430,6 +430,14 @@ export default function Dashboard() {
   const activeSuggestions = suggestions.filter((s) => !s.blocked);
   const firstSuggestion = activeSuggestions[0];
 
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h >= 5 && h < 12) return "בוקר טוב";
+    if (h >= 12 && h < 17) return "צהריים טובים";
+    if (h >= 17 && h < 21) return "ערב טוב";
+    return "לילה טוב";
+  })();
+
   return (
     <div className="min-h-screen pb-20 md:pb-0" style={{ background: "oklch(0.97 0.01 85)" }}>
       {/* Profile sidebar */}
@@ -500,10 +508,22 @@ export default function Dashboard() {
       {activeTab === "home" && (
         <div className="max-w-6xl mx-auto px-4 md:px-8 py-6">
 
+          {loadingData && (
+            <div className="flex flex-col gap-4 animate-pulse">
+              <div className="h-8 w-48 rounded-xl ms-auto" style={{ background: "oklch(0.91 0.02 85)" }} />
+              <div className="h-32 rounded-3xl" style={{ background: "oklch(0.91 0.02 85)" }} />
+              <div className="grid grid-cols-3 gap-3">
+                {[1,2,3].map(i => <div key={i} className="h-20 rounded-2xl" style={{ background: "oklch(0.91 0.02 85)" }} />)}
+              </div>
+              <div className="h-40 rounded-2xl" style={{ background: "oklch(0.91 0.02 85)" }} />
+            </div>
+          )}
+          {!loadingData && (
+          <>
           {/* Welcome strip */}
           <div className="text-right mb-5">
             <p className="text-2xl font-black" style={{ color: "oklch(0.18 0.03 255)" }}>
-              בוקר טוב, {loadingData ? "..." : userName}
+              {greeting}, {loadingData ? "..." : userName}
             </p>
             <p className="text-sm mt-1" style={{ color: "oklch(0.55 0.03 255)" }}>
               {loadingData ? "טוען..." : `השבוע יש לך ${activeSuggestions.length} רגעים שמחכים לך.`}
@@ -666,6 +686,8 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+          </>
+          )}
         </div>
       )}
 

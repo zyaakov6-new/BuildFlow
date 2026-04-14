@@ -6,6 +6,7 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/dashboard'
+  const type = searchParams.get('type')
 
   if (code) {
     const cookieStore = await cookies()
@@ -27,7 +28,10 @@ export async function GET(request: Request) {
     )
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      // Check if onboarding completed
+        if (type === 'recovery') {
+          return NextResponse.redirect(new URL('/auth/reset', origin))
+        }
+        // Check if onboarding completed
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const { data: onboarding } = await supabase

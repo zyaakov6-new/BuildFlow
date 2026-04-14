@@ -67,6 +67,9 @@ const DEFAULT_DATA: UserData = {
 export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
   const router = useRouter();
   const [userData, setUserData] = useState<UserData>(DEFAULT_DATA);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [savingName, setSavingName] = useState(false);
 
   useEffect(() => {
     if (!open) return; // only load when sidebar opens
@@ -120,6 +123,19 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
     }
     load();
   }, [open]);
+
+  const handleSaveName = async () => {
+    if (!nameInput.trim()) return;
+    setSavingName(true);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from("profiles").update({ full_name: nameInput.trim() }).eq("id", user.id);
+      setUserData((prev) => ({ ...prev, name: nameInput.trim(), avatarInitial: nameInput.trim()[0] ?? "?" }));
+    }
+    setSavingName(false);
+    setEditingName(false);
+  };
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -313,18 +329,50 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
             ))}
           </div>
 
-          {/* Edit profile link */}
+          {/* Edit profile */}
           <div className="mx-4 mt-3">
-            <button
-              className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border text-right transition-colors hover:bg-[oklch(0.97_0.01_85)]"
-              style={{ borderColor: "oklch(0.93 0.02 85)", background: "white" }}
-            >
-              <ChevronLeft className="w-4 h-4" style={{ color: "oklch(0.7 0.03 255)" }} />
-              <div className="flex items-center gap-2 flex-row-reverse">
-                <User className="w-4 h-4" style={{ color: "oklch(0.65 0.14 140)" }} />
-                <span className="text-sm font-semibold" style={{ color: "oklch(0.35 0.03 255)" }}>עריכת פרופיל</span>
+            {!editingName ? (
+              <button
+                onClick={() => { setEditingName(true); setNameInput(userData.name); }}
+                className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border text-right transition-colors hover:bg-[oklch(0.97_0.01_85)]"
+                style={{ borderColor: "oklch(0.93 0.02 85)", background: "white" }}
+              >
+                <ChevronLeft className="w-4 h-4" style={{ color: "oklch(0.7 0.03 255)" }} />
+                <div className="flex items-center gap-2 flex-row-reverse">
+                  <User className="w-4 h-4" style={{ color: "oklch(0.65 0.14 140)" }} />
+                  <span className="text-sm font-semibold" style={{ color: "oklch(0.35 0.03 255)" }}>עריכת שם</span>
+                </div>
+              </button>
+            ) : (
+              <div className="rounded-2xl border p-4" style={{ borderColor: "oklch(0.88 0.04 140 / 0.5)", background: "white" }}>
+                <p className="text-xs font-bold text-right mb-2" style={{ color: "oklch(0.52 0.03 255)" }}>שם מלא</p>
+                <input
+                  type="text"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  className="w-full rounded-xl px-3 py-2.5 text-sm text-right outline-none mb-3 border-2 focus:border-[oklch(0.65_0.14_140)]"
+                  style={{ borderColor: "oklch(0.90 0.02 85)", background: "oklch(0.97 0.01 85)" }}
+                  dir="rtl"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setEditingName(false)}
+                    className="flex-1 rounded-xl py-2 text-xs font-bold border transition-colors"
+                    style={{ borderColor: "oklch(0.88 0.02 85)", color: "oklch(0.55 0.03 255)" }}
+                  >
+                    ביטול
+                  </button>
+                  <button
+                    onClick={handleSaveName}
+                    disabled={savingName}
+                    className="flex-[2] rounded-xl py-2 text-xs font-black text-white disabled:opacity-60"
+                    style={{ background: "oklch(0.65 0.14 140)" }}
+                  >
+                    {savingName ? "שומר..." : "שמור"}
+                  </button>
+                </div>
               </div>
-            </button>
+            )}
           </div>
 
           <div className="h-6" />
