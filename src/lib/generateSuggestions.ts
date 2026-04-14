@@ -78,9 +78,10 @@ title, description, duration_min, prep_min, time_slot, day_label, category, acti
 
 child_index הוא אינדקס הילד (0 עבור ילד ראשון, 1 עבור שני וכו').`;
 
-  const response = await client.messages.create({
+  // Use streaming so the edge function gets incremental bytes and doesn't time out
+  const stream = client.messages.stream({
     model: "claude-opus-4-6",
-    max_tokens: 4096,
+    max_tokens: 2048, // 6 suggestions need ~1000-1500 tokens; 2048 is plenty
     system: [
       {
         type: "text",
@@ -91,6 +92,7 @@ child_index הוא אינדקס הילד (0 עבור ילד ראשון, 1 עבו
     messages: [{ role: "user", content: userPrompt }],
   });
 
+  const response = await stream.finalMessage();
   const textBlock = response.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") {
     throw new Error("No text response from Claude");

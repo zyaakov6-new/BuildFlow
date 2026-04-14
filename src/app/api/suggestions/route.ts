@@ -2,6 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database";
 import { generateAISuggestions } from "@/lib/generateSuggestions";
 
+// Edge runtime gives 30 s instead of the 10 s serverless limit on hobby plans
+export const runtime = "edge";
+
 type ChildRow = Database["public"]["Tables"]["children"]["Row"];
 
 // ---- Week number helper ----
