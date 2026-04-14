@@ -17,8 +17,8 @@ export async function GET() {
   }
 
   const now     = new Date()
-  const pastStart = new Date(now); pastStart.setDate(now.getDate() - 7)
-  const futureEnd = new Date(now); futureEnd.setDate(now.getDate() + 30)
+  const pastStart = new Date(now); pastStart.setHours(0, 0, 0, 0) // today midnight
+  const futureEnd = new Date(now); futureEnd.setDate(now.getDate() + 7); futureEnd.setHours(23, 59, 59, 999)
 
   const options = {
     timeMin: pastStart.toISOString(),

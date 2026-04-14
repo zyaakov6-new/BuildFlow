@@ -53,8 +53,8 @@ export default function CalendarScreen() {
         ];
 
         // --- 1. BondFlow saved moments ---
-        const rangeStart = new Date(); rangeStart.setDate(rangeStart.getDate() - 7); rangeStart.setHours(0, 0, 0, 0);
-        const rangeEnd   = new Date(); rangeEnd.setDate(rangeEnd.getDate() + 30);
+        const rangeStart = new Date(); rangeStart.setHours(0, 0, 0, 0); // today midnight
+        const rangeEnd   = new Date(); rangeEnd.setDate(rangeEnd.getDate() + 7); rangeEnd.setHours(23, 59, 59, 999);
 
         const { data: saved } = await supabase
           .from("saved_moments")
