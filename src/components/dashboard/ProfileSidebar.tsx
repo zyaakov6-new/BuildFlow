@@ -245,8 +245,8 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
   const handleUpgrade = async (plan: "premium" | "annual" = "premium") => {
     setUpgradingPlan(true);
     try {
-      const { openPaddleCheckout, PADDLE_PRICES } = await import("@/lib/paddle");
-      const priceId = PADDLE_PRICES[plan];
+      const { openPaddleCheckout, getPaddlePriceId } = await import("@/lib/paddle");
+      const priceId = await getPaddlePriceId(plan);
       if (!priceId) {
         const { toast } = await import("sonner");
         toast.error("שגיאה בטעינת מערכת התשלום. נסה שוב בעוד רגע.");

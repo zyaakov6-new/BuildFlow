@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Check, Sparkles, Loader2 } from "lucide-react";
-import { openPaddleCheckout, PADDLE_PRICES } from "@/lib/paddle";
+import { openPaddleCheckout, getPaddlePriceId } from "@/lib/paddle";
 import { toast } from "sonner";
 
 const plans = [
@@ -64,13 +64,13 @@ export default function Pricing() {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   const handlePaidPlan = async (planId: "premium" | "annual") => {
-    const priceId = PADDLE_PRICES[planId];
-    if (!priceId) {
-      toast.error("שגיאה בטעינת מערכת התשלום. נסה שוב בעוד רגע.");
-      return;
-    }
     setLoadingPlan(planId);
     try {
+      const priceId = await getPaddlePriceId(planId);
+      if (!priceId) {
+        toast.error("שגיאה בטעינת מערכת התשלום. נסה שוב בעוד רגע.");
+        return;
+      }
       await openPaddleCheckout({
         items: [{ priceId, quantity: 1 }],
         settings: { displayMode: "overlay", theme: "light" },

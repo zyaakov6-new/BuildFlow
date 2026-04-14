@@ -1,26 +1,38 @@
 /**
  * Paddle Billing client-side helper.
- * Lazy-loads Paddle.js overlay on first call.
+ *
+ * Config (token + price IDs) is fetched from /api/paddle/config on first use
+ * so it never depends on NEXT_PUBLIC_ compile-time inlining.
  */
 import type { Paddle, CheckoutOpenOptions } from "@paddle/paddle-js";
 
+interface PaddleConfig {
+  token:  string;
+  prices: { premium: string; annual: string };
+}
+
+let cachedConfig:  PaddleConfig | null = null;
 let paddleInstance: Paddle | null = null;
+
+async function getConfig(): Promise<PaddleConfig> {
+  if (cachedConfig) return cachedConfig;
+  const res = await fetch("/api/paddle/config");
+  if (!res.ok) throw new Error(`Failed to load Paddle config (${res.status})`);
+  cachedConfig = (await res.json()) as PaddleConfig;
+  return cachedConfig;
+}
 
 async function getPaddle(): Promise<Paddle> {
   if (paddleInstance) return paddleInstance;
 
   const { initializePaddle } = await import("@paddle/paddle-js");
+  const { token } = await getConfig();
 
-  // Trim and strip surrounding quotes that some .env parsers leave behind
-  const raw   = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN ?? "";
-  const token = raw.trim().replace(/^["']|["']$/g, "");
-
-  if (!token) throw new Error("NEXT_PUBLIC_PADDLE_CLIENT_TOKEN is not configured");
+  if (!token) throw new Error("Paddle client token is not configured on the server");
 
   const env = token.startsWith("live_") ? "production" : "sandbox";
-
   paddleInstance = await initializePaddle({ token, environment: env }) ?? null;
-  if (!paddleInstance) throw new Error("Paddle failed to initialize — check your client token");
+  if (!paddleInstance) throw new Error("Paddle failed to initialize — check the client token");
 
   return paddleInstance;
 }
@@ -30,12 +42,8 @@ export async function openPaddleCheckout(opts: CheckoutOpenOptions) {
   paddle.Checkout.open(opts);
 }
 
-/** Returns the price ID for a plan, cleaned from env var quotes. */
-function cleanEnv(key: string): string {
-  return (key ?? "").trim().replace(/^["']|["']$/g, "");
+/** Fetches the price ID for a plan from the server. */
+export async function getPaddlePriceId(plan: "premium" | "annual"): Promise<string> {
+  const config = await getConfig();
+  return config.prices[plan] ?? "";
 }
-
-export const PADDLE_PRICES = {
-  get premium() { return cleanEnv(process.env.NEXT_PUBLIC_PADDLE_PRICE_PREMIUM_MONTHLY ?? ""); },
-  get annual()  { return cleanEnv(process.env.NEXT_PUBLIC_PADDLE_PRICE_ANNUAL ?? ""); },
-};
