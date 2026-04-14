@@ -15,10 +15,10 @@ export default function Home() {
       <Navbar />
       <main>
         <Hero />
+        <SocialProof />
         <Problem />
         <HowItWorks />
         <Benefits />
-        <SocialProof />
         <Pricing />
         <FAQ />
         <FinalCTA />

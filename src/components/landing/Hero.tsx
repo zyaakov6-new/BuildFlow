@@ -1,14 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { Sparkles, Calendar, Heart, CheckCircle2, Quote } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { Sparkles, Calendar, Heart, Star, CheckCircle2, Quote } from "lucide-react";
 
 export default function Hero() {
   return (
-    <section className="relative min-h-screen gradient-hero flex items-center overflow-hidden pt-16">
-      {/* עיגולי רקע דקורטיביים — hidden on small screens to avoid overflow */}
+    <section className="relative gradient-hero flex items-center overflow-hidden pt-16 pb-0">
       <div
         className="hidden sm:block absolute top-20 left-10 w-72 h-72 rounded-full opacity-20 blur-3xl pointer-events-none"
         style={{ background: "oklch(0.65 0.14 140)" }}
@@ -18,8 +17,7 @@ export default function Hero() {
         style={{ background: "oklch(0.72 0.18 42)" }}
       />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-20 grid lg:grid-cols-2 gap-12 items-center">
-        {/* טקסט ראשי */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-16 pb-10 grid lg:grid-cols-2 gap-12 items-center">
         <div className="flex flex-col gap-6 min-w-0 overflow-hidden">
           <Badge
             variant="secondary"
@@ -31,86 +29,68 @@ export default function Hero() {
             }}
           >
             <Sparkles className="w-3.5 h-3.5 ml-1.5" />
-            AI לזמן משפחתי - נבנה במיוחד להורים ישראלים
+            AI לזמן משפחתי, נבנה להורים עסוקים בישראל
           </Badge>
 
-          <h1 className="text-[1.75rem] xs:text-4xl sm:text-5xl lg:text-6xl font-black leading-[1.15] tracking-tight break-words" style={{ color: "oklch(0.2 0.03 255)" }}>
+          <h1
+            className="text-[1.75rem] xs:text-4xl sm:text-5xl lg:text-6xl font-black leading-[1.15] tracking-tight break-words"
+            style={{ color: "oklch(0.2 0.03 255)" }}
+          >
             הילדים שלך לא צריכים{" "}
-            <span className="text-gradient">עוד כסף.</span>
+            <span className="text-gradient">עוד דברים.</span>
             <br />
             הם צריכים יותר{" "}
             <span className="italic text-gradient">אותך.</span>
           </h1>
 
-          <p className="text-lg leading-relaxed max-w-lg" style={{ color: "oklch(0.45 0.03 255)" }}>
-            BondFlow מוצאת את הרגעים האמיתיים שמתחבאים ביומן הבלתי אפשרי שלך -
-            והופכת אותם לזיכרונות שהילדים שלך ידברו עליהם שנים.{" "}
-            <span className="font-bold" style={{ color: "oklch(0.35 0.03 255)" }}>
-              גם אם יש לך רק 20 דקות ביום שלישי.
-            </span>
+          <p className="text-base leading-relaxed max-w-lg" style={{ color: "oklch(0.45 0.03 255)" }}>
+            BondFlow מזהה חלונות קטנים ביומן שלך ומציעה רגעים משפחתיים שאפשר לעשות עכשיו.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3">
             <Link
               href="/auth"
-              className={buttonVariants({ size: "lg" }) + " gradient-cta text-white border-0 hover:opacity-90 rounded-2xl h-14 px-8 text-base font-bold shadow-lg"}
+              className={
+                buttonVariants({ size: "lg" }) +
+                " gradient-cta text-white border-0 hover:opacity-90 rounded-2xl h-14 px-8 text-base font-bold shadow-lg"
+              }
               style={{ boxShadow: "0 8px 24px oklch(0.65 0.14 140 / 0.35)" }}
             >
               <Sparkles className="w-4 h-4 ml-2" />
-              מצא את הרגע המשפחתי הראשון שלי - בחינם
+              מצא את הרגע המשפחתי הראשון שלי
             </Link>
           </div>
 
           <p className="text-sm" style={{ color: "oklch(0.6 0.03 255)" }}>
-            ללא כרטיס אשראי - עובד עם Google ו-Apple Calendar - בעברית
+            בלי כרטיס אשראי · Google Calendar · Apple Calendar · עברית מלאה
           </p>
 
-          {/* שורת אמון */}
-          <div className="flex items-center gap-4 pt-2">
-            <div className="flex -space-x-2 space-x-reverse">
-              {["#F4845F", "#7DB87A", "#F5C842", "#A78BFA", "#60A5FA"].map((color, i) => (
-                <div
-                  key={i}
-                  className="w-9 h-9 rounded-full border-2 border-white flex items-center justify-center text-sm font-bold text-white"
-                  style={{ background: color }}
-                >
-                  {["מ", "א", "ש", "ד", "נ"][i]}
-                </div>
-              ))}
-            </div>
-            <div>
-              <div className="flex items-center gap-1">
-                {[...Array(5)].map((_, i) => (
-                  <Star
-                    key={i}
-                    className="w-3.5 h-3.5 fill-current"
-                    style={{ color: "oklch(0.72 0.18 42)" }}
-                  />
-                ))}
+          {/* Research stats strip */}
+          <div className="grid grid-cols-3 gap-3 pt-1">
+            {[
+              { value: "73%", label: "מהורים חשים אשמה על חוסר זמן איכות" },
+              { value: "20 דק'", label: "של נוכחות מכוונת משנות את התחושה בבית" },
+              { value: "3–5 שעות", label: "זמן איכות שבועי חוזר כשיש כוונה פשוטה" },
+            ].map(({ value, label }, i) => (
+              <div key={i} className="rounded-xl p-2.5 text-center" style={{ background: "oklch(0.88 0.08 140 / 0.15)", border: "1px solid oklch(0.65 0.14 140 / 0.2)" }}>
+                <p className="text-sm font-black text-gradient">{value}</p>
+                <p className="text-xs mt-0.5 leading-tight" style={{ color: "oklch(0.45 0.03 255)" }}>{label}</p>
               </div>
-              <p className="text-xs mt-0.5" style={{ color: "oklch(0.55 0.03 255)" }}>
-                <span className="font-bold" style={{ color: "oklch(0.35 0.03 255)" }}>
-                  הצטרפו לרשימת הגישה המוקדמת
-                </span>{" "}
-                - היה הראשון לדעת
-              </p>
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* מוקאפ אפליקציה */}
         <div className="relative flex justify-center lg:justify-start">
           <div className="relative">
-            {/* מסגרת טלפון */}
             <div
               className="w-72 sm:w-80 rounded-[2.5rem] p-2 shadow-2xl"
               style={{
                 background: "oklch(0.25 0.04 255)",
-                boxShadow: "0 40px 80px oklch(0.25 0.04 255 / 0.3), 0 0 0 1px oklch(0.4 0.04 255 / 0.5)",
+                boxShadow:
+                  "0 40px 80px oklch(0.25 0.04 255 / 0.3), 0 0 0 1px oklch(0.4 0.04 255 / 0.5)",
               }}
             >
               <div className="rounded-[2rem] overflow-hidden" style={{ background: "oklch(0.97 0.01 85)" }}>
-                {/* שורת סטטוס */}
                 <div
                   className="px-6 py-3 flex justify-between items-center text-xs font-medium"
                   style={{ color: "oklch(0.45 0.03 255)" }}
@@ -119,7 +99,6 @@ export default function Hero() {
                   <div className="w-4 h-2 rounded-sm border border-current opacity-70" />
                 </div>
 
-                {/* כותרת אפליקציה */}
                 <div className="px-5 pb-4">
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-7 h-7 rounded-xl gradient-cta flex items-center justify-center">
@@ -130,47 +109,35 @@ export default function Hero() {
                     </span>
                   </div>
 
-                  {/* ברכה */}
                   <p className="text-xs font-medium mb-1" style={{ color: "oklch(0.55 0.03 255)" }}>
-                    ערב טוב, מיכל 👋
+                    ערב טוב, מיכל
                   </p>
                   <p className="text-lg font-black mb-4" style={{ color: "oklch(0.2 0.03 255)" }}>
                     יש לך 2 חלונות השבוע
                   </p>
 
-                  {/* כרטיס פעילות */}
-                  <div
-                    className="rounded-2xl p-3 mb-3"
-                    style={{ background: "oklch(0.88 0.08 140 / 0.25)" }}
-                  >
+                  <div className="rounded-2xl p-3 mb-3" style={{ background: "oklch(0.88 0.08 140 / 0.25)" }}>
                     <div className="flex items-center gap-2 mb-2">
                       <Calendar className="w-3.5 h-3.5" style={{ color: "oklch(0.55 0.14 140)" }} />
                       <span className="text-xs font-bold" style={{ color: "oklch(0.45 0.14 140)" }}>
-                        שלישי - 17:30-18:00
+                        שלישי 17:30-18:00
                       </span>
                     </div>
                     <p className="text-sm font-black mb-1" style={{ color: "oklch(0.25 0.03 255)" }}>
-                      🚂 בניית לגו רכבת
+                      בניית לגו ביחד
                     </p>
                     <p className="text-xs" style={{ color: "oklch(0.5 0.03 255)" }}>
-                      מתאים ליואב, 5 - אפס הכנה - רק אתה
+                      מתאים ליואב, 5. אפס הכנה.
                     </p>
                     <button className="mt-3 w-full rounded-xl py-2 text-xs font-bold text-white gradient-cta">
-                      חסום את הזמן הזה
+                      שמור את הזמן הזה
                     </button>
                   </div>
 
-                  {/* ציון חיבור */}
-                  <div
-                    className="rounded-2xl p-3"
-                    style={{ background: "oklch(0.92 0.06 60 / 0.3)" }}
-                  >
+                  <div className="rounded-2xl p-3" style={{ background: "oklch(0.92 0.06 60 / 0.3)" }}>
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-1.5">
-                        <Heart
-                          className="w-3.5 h-3.5 fill-current"
-                          style={{ color: "oklch(0.72 0.18 42)" }}
-                        />
+                        <Heart className="w-3.5 h-3.5 fill-current" style={{ color: "oklch(0.72 0.18 42)" }} />
                         <span className="text-xs font-bold" style={{ color: "oklch(0.45 0.12 42)" }}>
                           ציון חיבור משפחתי
                         </span>
@@ -183,23 +150,19 @@ export default function Hero() {
                       className="h-2 rounded-full overflow-hidden"
                       style={{ background: "oklch(0.85 0.06 60 / 0.5)" }}
                     >
-                      <div
-                        className="h-full rounded-full gradient-orange"
-                        style={{ width: "78%" }}
-                      />
+                      <div className="h-full rounded-full gradient-orange" style={{ width: "78%" }} />
                     </div>
                     <p className="text-xs mt-1.5" style={{ color: "oklch(0.55 0.08 42)" }}>
-                      עלה ב-12 מהשבוע שעבר
+                      עלה ב-12 משבוע שעבר
                     </p>
                   </div>
                 </div>
 
-                {/* ניווט תחתון */}
                 <div
                   className="border-t px-6 py-3 flex justify-around"
                   style={{ borderColor: "oklch(0.88 0.02 85)", background: "white" }}
                 >
-                  {["🏠", "📅", "💡", "📊"].map((icon, i) => (
+                  {["⌂", "✦", "□", "☺"].map((icon, i) => (
                     <div key={i} className="text-lg" style={{ opacity: i === 0 ? 1 : 0.4 }}>
                       {icon}
                     </div>
@@ -208,7 +171,6 @@ export default function Hero() {
               </div>
             </div>
 
-            {/* תגיות צפות */}
             <div
               className="absolute -top-4 -left-4 rounded-2xl px-3 py-2 shadow-lg text-xs font-bold flex items-center gap-1.5"
               style={{
@@ -218,7 +180,7 @@ export default function Hero() {
               }}
             >
               <CheckCircle2 className="w-3.5 h-3.5" style={{ color: "oklch(0.65 0.14 140)" }} />
-              4 רגעים השבוע!
+              4 רגעים השבוע
             </div>
             <div
               className="absolute -bottom-4 -right-6 rounded-2xl px-3 py-2 shadow-lg text-xs font-bold flex items-center gap-1.5"
@@ -235,7 +197,6 @@ export default function Hero() {
         </div>
       </div>
 
-      {/* גל תחתית */}
       <div className="absolute bottom-0 left-0 right-0 overflow-hidden leading-none">
         <svg
           viewBox="0 0 1440 60"

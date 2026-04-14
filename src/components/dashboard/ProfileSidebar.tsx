@@ -98,6 +98,7 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
   const [editingChildId, setEditingChildId] = useState<string | null>(null);
   const [childForm, setChildForm] = useState({ name: "", age_group: "6-8", interests: [] as string[] });
   const [savingChild, setSavingChild] = useState(false);
+  const [calendarConnected, setCalendarConnected] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -107,7 +108,7 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
       if (!user) return;
 
       const [profileRes, childrenRes, momentsRes, scoresRes] = await Promise.allSettled([
-        supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
+        supabase.from("profiles").select("full_name, google_calendar_token").eq("id", user.id).maybeSingle(),
         supabase.from("children").select("*").eq("user_id", user.id).order("created_at"),
         supabase.from("saved_moments").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("weekly_scores").select("week_number").eq("user_id", user.id),
@@ -119,6 +120,7 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
       const scoresData   = scoresRes.status === "fulfilled"  ? (scoresRes.value.data ?? []) : [];
 
       const name = profileData?.full_name ?? user.email?.split("@")[0] ?? "משתמש";
+      setCalendarConnected(!!profileData?.google_calendar_token);
       setChildren(kidsData);
 
       setUserData({
@@ -230,6 +232,18 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
     setEditingName(false);
   };
 
+  const connectGoogleCalendar = async () => {
+    const supabase = createClient();
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        scopes: "https://www.googleapis.com/auth/calendar.events",
+        queryParams: { access_type: "offline", prompt: "consent" },
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+  };
+
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -323,6 +337,41 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
               </div>
             </div>
           </div>
+
+          {/* Google Calendar connect */}
+          {calendarConnected === false && (
+            <div className="mx-4 mt-3 rounded-2xl border overflow-hidden" style={{ borderColor: "oklch(0.88 0.06 255 / 0.5)", background: "white" }}>
+              <div className="flex items-center gap-3 px-4 py-3 flex-row-reverse">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "oklch(0.90 0.06 255 / 0.15)" }}>
+                  <Calendar className="w-4 h-4" style={{ color: "oklch(0.52 0.14 255)" }} />
+                </div>
+                <div className="flex-1 text-right min-w-0">
+                  <p className="text-xs font-black" style={{ color: "oklch(0.2 0.03 255)" }}>Google Calendar</p>
+                  <p className="text-xs mt-0.5" style={{ color: "oklch(0.6 0.03 255)" }}>לא מחובר</p>
+                </div>
+                <button
+                  onClick={connectGoogleCalendar}
+                  className="rounded-xl px-3 py-1.5 text-xs font-black text-white flex-shrink-0 transition-opacity hover:opacity-85"
+                  style={{ background: "oklch(0.52 0.14 255)" }}
+                >
+                  חבר
+                </button>
+              </div>
+            </div>
+          )}
+          {calendarConnected === true && (
+            <div className="mx-4 mt-3 rounded-2xl border overflow-hidden" style={{ borderColor: "oklch(0.88 0.06 140 / 0.4)", background: "white" }}>
+              <div className="flex items-center gap-3 px-4 py-3 flex-row-reverse">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "oklch(0.88 0.08 140 / 0.15)" }}>
+                  <Calendar className="w-4 h-4" style={{ color: "oklch(0.55 0.14 140)" }} />
+                </div>
+                <div className="flex-1 text-right min-w-0">
+                  <p className="text-xs font-black" style={{ color: "oklch(0.2 0.03 255)" }}>Google Calendar</p>
+                  <p className="text-xs mt-0.5" style={{ color: "oklch(0.55 0.14 140)" }}>✓ מחובר</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Subscription card */}
           <div className="mx-4 mt-3">

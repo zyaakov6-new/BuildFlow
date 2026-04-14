@@ -13,6 +13,7 @@ import SuggestionsScreen from "./SuggestionsScreen";
 import CalendarScreen from "./CalendarScreen";
 import ReportsScreen from "./ReportsScreen";
 import SettingsScreen from "./SettingsScreen";
+import InlineSpinner from "@/components/ui/inline-spinner";
 
 // ---- Types ----
 type Tab = "home" | "suggestions" | "calendar" | "reports" | "profile";
@@ -243,7 +244,6 @@ const NAV_TABS: { id: Tab; label: string; Icon: React.ElementType; primary?: boo
   { id: "home",        label: "בית",         Icon: Home },
   { id: "suggestions", label: "מצא פעילות",  Icon: Sparkles, primary: true },
   { id: "calendar",    label: "יומן",        Icon: Calendar },
-  { id: "profile",     label: "פרופיל",      Icon: User },
 ];
 
 // ---- Mobile Bottom Nav ----
@@ -395,6 +395,7 @@ export default function Dashboard() {
   const [loadingData, setLoadingData] = useState(true);
   const [weekActiveDays, setWeekActiveDays] = useState<number[]>([]);
   const [calendarConnected, setCalendarConnected] = useState<boolean | null>(null);
+  const [calendarConnectLoading, setCalendarConnectLoading] = useState(false);
 
   // ---- Load real data on mount ----
   useEffect(() => {
@@ -611,19 +612,30 @@ export default function Dashboard() {
   };
 
   const connectGoogleCalendar = async () => {
-    const supabase = createClient();
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        scopes: "https://www.googleapis.com/auth/calendar.events",
-        queryParams: { access_type: "offline", prompt: "consent" },
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
+    setCalendarConnectLoading(true);
+    try {
+      const supabase = createClient();
+      await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          scopes: "https://www.googleapis.com/auth/calendar.events",
+          queryParams: { access_type: "offline", prompt: "consent" },
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+    } finally {
+      setCalendarConnectLoading(false);
+    }
   };
 
   const activeSuggestions = suggestions.filter((s) => !s.blocked);
   const firstSuggestion = activeSuggestions[0];
+  const isZeroActivity = momentsCount === 0 && weekActiveDays.length === 0;
+  const homeSummary = isZeroActivity
+    ? "השבוע עדיין פתוח. בחר רגע ראשון ונתחיל לזוז."
+    : `השבוע יש לך ${activeSuggestions.length} רגעים שמחכים לך.`;
+  const scoreHeadline = isZeroActivity ? "עוד לא התחלת השבוע." : "אתה שם.";
+  const scoreSubline = isZeroActivity ? "שמור רגע אחד כדי לפתוח מומנטום." : "ממשיך כך.";
 
   const greeting = (() => {
     const h = new Date().getHours();
@@ -640,7 +652,7 @@ export default function Dashboard() {
 
       {/* ---- Top bar ---- */}
       <div
-        className="sticky top-0 z-10 flex items-center gap-4 px-4 md:px-8 pt-4 pb-3"
+        className="sticky top-0 z-10 flex items-center px-4 md:px-8 pt-4 pb-3"
         style={{
           background: "oklch(0.97 0.01 85 / 0.92)",
           backdropFilter: "blur(12px)",
@@ -656,10 +668,10 @@ export default function Dashboard() {
           <span className="absolute top-2 right-2 w-2 h-2 rounded-full" style={{ background: "oklch(0.72 0.18 42)" }} />
         </button>
 
-        {/* Desktop nav - center */}
-        <nav className="hidden md:flex items-center gap-1 flex-1 justify-center">
+        {/* Desktop nav - center (hidden on mobile) */}
+        <nav className="hidden md:flex items-center gap-1 flex-1 justify-center mx-4">
           {NAV_TABS.map(({ id, label, Icon, primary }) => {
-            const isActive = activeTab === id && id !== "profile";
+            const isActive = activeTab === id;
             return (
               <button
                 key={id}
@@ -680,20 +692,19 @@ export default function Dashboard() {
           })}
         </nav>
 
-        {/* Greeting + avatar - DOM last = visual left in RTL */}
-        <div className="flex items-center gap-3 flex-shrink-0">
-          <div className="text-right hidden sm:block">
-            <p className="text-xs font-medium" style={{ color: "oklch(0.6 0.03 255)" }}>שלום,</p>
-            <p className="text-sm font-black leading-tight" style={{ color: "oklch(0.2 0.03 255)" }}>{userName}</p>
-          </div>
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black text-white flex-shrink-0 transition-opacity hover:opacity-85 active:scale-95"
-            style={{ background: "oklch(0.65 0.14 140)" }}
-          >
-            {userInitial}
-          </button>
+        {/* Mobile: app name centered */}
+        <div className="flex-1 flex justify-center md:hidden">
+          <span className="text-sm font-black" style={{ color: "oklch(0.35 0.05 255)" }}>BondFlow</span>
         </div>
+
+        {/* Avatar button - DOM last = visual left in RTL (both mobile & desktop) */}
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black text-white flex-shrink-0 transition-opacity hover:opacity-85 active:scale-95"
+          style={{ background: "oklch(0.65 0.14 140)" }}
+        >
+          {userInitial}
+        </button>
       </div>
 
       {/* ---- Screen routing ---- */}
@@ -721,10 +732,10 @@ export default function Dashboard() {
           {/* Welcome strip */}
           <div className="text-right mb-5">
             <p className="text-2xl font-black" style={{ color: "oklch(0.18 0.03 255)" }}>
-              {greeting}, {loadingData ? "..." : userName}
+              {greeting}, {userName}
             </p>
             <p className="text-sm mt-1" style={{ color: "oklch(0.55 0.03 255)" }}>
-              {loadingData ? "טוען..." : `השבוע יש לך ${activeSuggestions.length} רגעים שמחכים לך.`}
+              {homeSummary}
             </p>
           </div>
 
@@ -732,72 +743,96 @@ export default function Dashboard() {
 
             {/* Main column */}
             <div className="lg:col-span-2 flex flex-col gap-5">
-              {/* Weekly Report Card */}
-              <div
-                className="rounded-3xl overflow-hidden"
-                style={{
-                  background: "linear-gradient(135deg, oklch(0.28 0.05 255), oklch(0.32 0.08 265))",
-                  boxShadow: "0 8px 40px oklch(0.28 0.05 255 / 0.35)",
-                }}
-              >
-                <div className="relative p-5">
-                  <div className="absolute -top-6 -left-6 w-32 h-32 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: "oklch(0.65 0.14 140)" }} />
-                  <div className="absolute -bottom-4 -right-4 w-24 h-24 rounded-full opacity-15 blur-xl pointer-events-none" style={{ background: "oklch(0.72 0.18 42)" }} />
-
-                  <div className="relative z-10 flex items-center justify-between mb-4">
+              {/* Weekly Report Card — zero-activity gets a CTA instead */}
+              {isZeroActivity ? (
+                <div
+                  className="rounded-3xl overflow-hidden"
+                  style={{
+                    background: "linear-gradient(135deg, oklch(0.62 0.16 148), oklch(0.56 0.18 155))",
+                    boxShadow: "0 8px 40px oklch(0.60 0.16 148 / 0.4)",
+                  }}
+                >
+                  <div className="relative p-6 text-center">
+                    <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: "oklch(0.90 0.12 80)" }} />
+                    <Sparkles className="w-10 h-10 mx-auto mb-3 text-white opacity-90" />
+                    <p className="text-xl font-black text-white mb-1">{scoreHeadline}</p>
+                    <p className="text-sm text-white opacity-80 mb-5">{scoreSubline}</p>
                     <button
-                      onClick={() => setActiveTab("reports")}
-                      className="text-xs font-bold flex items-center gap-1 transition-opacity hover:opacity-75"
-                      style={{ color: "oklch(0.65 0.03 255)" }}
+                      onClick={() => setActiveTab("suggestions")}
+                      className="rounded-2xl px-6 py-3 text-sm font-black transition-all hover:scale-105 active:scale-95"
+                      style={{ background: "white", color: "oklch(0.52 0.16 148)" }}
                     >
-                      <ChevronLeft className="w-3 h-3" />
-                      דוח מלא
+                      שמור רגע ראשון →
                     </button>
-                    <p className="text-sm font-black text-white">הציון השבועי שלך</p>
-                  </div>
-
-                  <div className="relative z-10 text-center mb-4">
-                    <div className="inline-flex items-end gap-1.5">
-                      <span className="text-6xl font-black text-white leading-none">{weekScore}</span>
-                      <span className="text-xl font-bold mb-1" style={{ color: "oklch(0.65 0.03 255)" }}>/100</span>
-                    </div>
-                    <p className="text-sm font-bold mt-1" style={{ color: "oklch(0.65 0.14 140)" }}>ציון חיבור משפחתי</p>
-                    {scoreDelta !== 0 && (
-                      <p className="text-xs mt-0.5" style={{ color: scoreDelta > 0 ? "oklch(0.65 0.14 140)" : "oklch(0.65 0.08 25)" }}>
-                        {scoreDelta > 0 ? `▲ +${scoreDelta}` : `▼ ${scoreDelta}`} משבוע שעבר
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="relative z-10 grid grid-cols-2 gap-3 mb-4">
-                    {[
-                      { value: momentsCount, label: "רגעים שמורים" },
-                      { value: activeSuggestions.length, label: "הצעות זמינות" },
-                    ].map(({ value, label }, i) => (
-                      <div key={i} className="rounded-2xl p-3 text-center" style={{ background: "oklch(1 0 0 / 0.1)" }}>
-                        <p className="text-2xl font-black text-white">{value}</p>
-                        <p className="text-xs" style={{ color: "oklch(0.7 0.03 255)" }}>{label}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="relative z-10 flex items-center justify-between rounded-2xl px-3 py-2.5" style={{ background: "oklch(1 0 0 / 0.08)" }}>
-                    <span className="text-xs" style={{ color: "oklch(0.7 0.03 255)" }}>ראשון</span>
-                    <div className="flex gap-1.5">
-                      {[0,1,2,3,4,5,6].map((dayIdx) => {
-                        const done = weekActiveDays.includes(dayIdx);
-                        return (
-                          <div key={dayIdx} className="w-6 h-6 rounded-full flex items-center justify-center"
-                            style={{ background: done ? "oklch(0.65 0.14 140)" : "oklch(1 0 0 / 0.15)" }}>
-                            {done && <CheckCircle2 className="w-3.5 h-3.5 text-white" strokeWidth={2.5} />}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <span className="text-xs" style={{ color: "oklch(0.7 0.03 255)" }}>שבת</span>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div
+                  className="rounded-3xl overflow-hidden"
+                  style={{
+                    background: "linear-gradient(135deg, oklch(0.28 0.05 255), oklch(0.32 0.08 265))",
+                    boxShadow: "0 8px 40px oklch(0.28 0.05 255 / 0.35)",
+                  }}
+                >
+                  <div className="relative p-5">
+                    <div className="absolute -top-6 -left-6 w-32 h-32 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: "oklch(0.65 0.14 140)" }} />
+                    <div className="absolute -bottom-4 -right-4 w-24 h-24 rounded-full opacity-15 blur-xl pointer-events-none" style={{ background: "oklch(0.72 0.18 42)" }} />
+
+                    <div className="relative z-10 flex items-center justify-between mb-4">
+                      <button
+                        onClick={() => setActiveTab("reports")}
+                        className="text-xs font-bold flex items-center gap-1 transition-opacity hover:opacity-75"
+                        style={{ color: "oklch(0.65 0.03 255)" }}
+                      >
+                        <ChevronLeft className="w-3 h-3" />
+                        דוח מלא
+                      </button>
+                      <p className="text-sm font-black text-white">הציון השבועי שלך</p>
+                    </div>
+
+                    <div className="relative z-10 text-center mb-4">
+                      <div className="inline-flex items-end gap-1.5">
+                        <span className="text-6xl font-black text-white leading-none">{weekScore}</span>
+                        <span className="text-xl font-bold mb-1" style={{ color: "oklch(0.65 0.03 255)" }}>/100</span>
+                      </div>
+                      <p className="text-sm font-bold mt-1" style={{ color: "oklch(0.65 0.14 140)" }}>ציון חיבור משפחתי</p>
+                      {scoreDelta !== 0 && (
+                        <p className="text-xs mt-0.5" style={{ color: scoreDelta > 0 ? "oklch(0.65 0.14 140)" : "oklch(0.65 0.08 25)" }}>
+                          {scoreDelta > 0 ? `▲ +${scoreDelta}` : `▼ ${scoreDelta}`} משבוע שעבר
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="relative z-10 grid grid-cols-2 gap-3 mb-4">
+                      {[
+                        { value: momentsCount, label: "רגעים שמורים" },
+                        { value: activeSuggestions.length, label: "הצעות זמינות" },
+                      ].map(({ value, label }, i) => (
+                        <div key={i} className="rounded-2xl p-3 text-center" style={{ background: "oklch(1 0 0 / 0.1)" }}>
+                          <p className="text-2xl font-black text-white">{value}</p>
+                          <p className="text-xs" style={{ color: "oklch(0.7 0.03 255)" }}>{label}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="relative z-10 flex items-center justify-between rounded-2xl px-3 py-2.5" style={{ background: "oklch(1 0 0 / 0.08)" }}>
+                      <span className="text-xs" style={{ color: "oklch(0.7 0.03 255)" }}>ראשון</span>
+                      <div className="flex gap-1.5">
+                        {[0,1,2,3,4,5,6].map((dayIdx) => {
+                          const done = weekActiveDays.includes(dayIdx);
+                          return (
+                            <div key={dayIdx} className="w-6 h-6 rounded-full flex items-center justify-center"
+                              style={{ background: done ? "oklch(0.65 0.14 140)" : "oklch(1 0 0 / 0.15)" }}>
+                              {done && <CheckCircle2 className="w-3.5 h-3.5 text-white" strokeWidth={2.5} />}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <span className="text-xs" style={{ color: "oklch(0.7 0.03 255)" }}>שבת</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Quick stats */}
               <div className="grid grid-cols-3 gap-3">

@@ -1,45 +1,38 @@
 "use client";
 
 import { useState } from "react";
+import { Sparkles, Trophy, Heart, Calendar, Lock, Globe, Smartphone, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Trophy, Heart, Calendar, Users, Lock, Globe, Smartphone, MapPin } from "lucide-react";
 
 const stats = [
   {
     Icon: Trophy,
     value: "3-5 שעות",
-    label: "של חיבור משפחתי אמיתי שהורים מחזירים בשבוע - לפי מחקרי פעילות מכוונת עם ילדים",
+    label: "של זמן איכות שבועי חוזר כשיש כוונה ותכנון פשוט.",
     color: "oklch(0.72 0.18 42)",
     bg: "oklch(0.92 0.06 60 / 0.2)",
   },
   {
     Icon: Heart,
     value: "73%",
-    label: "מההורים מדווחים על תחושת אשמה כרונית בגלל חוסר זמן איכות - סקר Pew Research 2023",
+    label: "מההורים מדווחים על אשמה סביב חוסר זמן איכות.",
     color: "oklch(0.65 0.14 140)",
     bg: "oklch(0.88 0.08 140 / 0.15)",
   },
   {
     Icon: Calendar,
     value: "20 דקות",
-    label: "של פעילות ממוקדת ביום משפרות משמעותית את הקשר הרגשי - מחקר APA",
+    label: "של נוכחות מכוונת כבר יכולות לשנות את התחושה בבית.",
     color: "oklch(0.55 0.18 255)",
     bg: "oklch(0.90 0.06 255 / 0.12)",
-  },
-  {
-    Icon: Users,
-    value: "87%",
-    label: "מהילדים רוצים יותר זמן עם הוריהם על פני כל מתנה חומרית אחרת",
-    color: "oklch(0.72 0.18 42)",
-    bg: "oklch(0.92 0.06 60 / 0.2)",
   },
 ];
 
 const trustBadges = [
-  { Icon: Lock, text: "נתוני היומן פרטיים לגמרי - לא נמכרים לאף אחד" },
+  { Icon: Lock, text: "נתוני היומן פרטיים לגמרי" },
   { Icon: Globe, text: "ממשק מלא בעברית" },
-  { Icon: MapPin, text: "לוח שנה ישראלי - חגים ושעות בית ספר" },
-  { Icon: Smartphone, text: "iOS + Android - Google ו-Apple Calendar" },
+  { Icon: MapPin, text: "נבנה ללוח הישראלי" },
+  { Icon: Smartphone, text: "iOS + Android + Google / Apple Calendar" },
 ];
 
 export default function SocialProof() {
@@ -52,47 +45,9 @@ export default function SocialProof() {
   };
 
   return (
-    <section className="py-24" style={{ background: "oklch(0.98 0.01 85)" }}>
+    <section className="py-14" style={{ background: "oklch(0.98 0.01 85)" }}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="text-center mb-16">
-          <p className="text-sm font-bold uppercase tracking-wider mb-3" style={{ color: "oklch(0.65 0.14 140)" }}>
-            המספרים לא משקרים
-          </p>
-          <h2 className="text-3xl sm:text-4xl font-black mb-4" style={{ color: "oklch(0.2 0.03 255)" }}>
-            למה זמן משפחתי מכוון
-            <br />
-            <span className="text-gradient">חשוב יותר ממה שחשבת</span>
-          </h2>
-          <p className="text-lg max-w-xl mx-auto" style={{ color: "oklch(0.5 0.03 255)" }}>
-            אלה לא מספרים שהמצאנו. זה מה שהמחקר אומר על הורות, חיבור, ואשמה.
-          </p>
-        </div>
-
-        <div className="grid sm:grid-cols-2 gap-5 mb-16">
-          {stats.map((s, i) => {
-            const Icon = s.Icon;
-            return (
-              <div
-                key={i}
-                className="rounded-3xl p-6 sm:p-7 card-hover border flex gap-4 items-start"
-                style={{ background: "white", borderColor: "oklch(0.92 0.02 85)" }}
-              >
-                <div
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: s.bg }}
-                >
-                  <Icon className="w-5 h-5" style={{ color: s.color }} />
-                </div>
-                <div>
-                  <p className="text-3xl font-black mb-1 text-gradient">{s.value}</p>
-                  <p className="text-sm leading-relaxed" style={{ color: "oklch(0.5 0.03 255)" }}>{s.label}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="flex flex-wrap justify-center gap-4 mb-16">
+        <div className="flex flex-wrap justify-center gap-3 mb-10">
           {trustBadges.map((badge, i) => {
             const Icon = badge.Icon;
             return (
@@ -108,11 +63,7 @@ export default function SocialProof() {
           })}
         </div>
 
-        {/* Early access form */}
-        <div
-          className="rounded-3xl p-8 sm:p-12 text-center relative overflow-hidden"
-          style={{ background: "oklch(0.28 0.05 255)" }}
-        >
+        <div className="rounded-3xl p-8 sm:p-12 text-center relative overflow-hidden" style={{ background: "oklch(0.28 0.05 255)" }}>
           <div className="absolute top-0 left-0 w-60 h-60 rounded-full opacity-20 blur-3xl pointer-events-none" style={{ background: "oklch(0.65 0.14 140)" }} />
           <div className="absolute bottom-0 right-0 w-60 h-60 rounded-full opacity-15 blur-3xl pointer-events-none" style={{ background: "oklch(0.72 0.18 42)" }} />
 
@@ -121,11 +72,10 @@ export default function SocialProof() {
               גישה מוקדמת
             </p>
             <h3 className="text-2xl sm:text-3xl font-black text-white mb-3">
-              BondFlow בבנייה - היה הראשון לדעת
+              רוצים לנסות ראשונים?
             </h3>
             <p className="mb-8 max-w-lg mx-auto" style={{ color: "oklch(0.72 0.05 255)" }}>
-              אנחנו מגיעים. השאיר את המייל ותקבל גישה ראשונה, מחיר מייסדים,
-              ועדכונים ישר מהבנייה.
+              השאירו מייל ונעדכן כשנפתחת הגישה המוקדמת.
             </p>
 
             {submitted ? (
@@ -134,9 +84,9 @@ export default function SocialProof() {
                 style={{ background: "oklch(0.65 0.14 140 / 0.2)", border: "1px solid oklch(0.65 0.14 140 / 0.4)" }}
               >
                 <Sparkles className="w-6 h-6 mx-auto mb-2" style={{ color: "oklch(0.75 0.14 140)" }} />
-                <p className="font-black text-white text-lg">נרשמת בהצלחה!</p>
+                <p className="font-black text-white text-lg">נרשמת בהצלחה</p>
                 <p className="text-sm mt-1" style={{ color: "oklch(0.72 0.05 255)" }}>
-                  נעדכן אותך ראשון כשנשיק.
+                  נעדכן אותך כשנפתח.
                 </p>
               </div>
             ) : (
@@ -156,13 +106,13 @@ export default function SocialProof() {
                   style={{ boxShadow: "0 4px 16px oklch(0.65 0.14 140 / 0.4)" }}
                 >
                   <Sparkles className="w-4 h-4 ml-1.5" />
-                  שמור לי מקום
+                  שמרו לי מקום
                 </Button>
               </form>
             )}
 
             <p className="text-xs mt-4" style={{ color: "oklch(0.55 0.05 255)" }}>
-              ללא ספאם. רק עדכונים חשובים. מבטיחים.
+              בלי ספאם. רק עדכונים חשובים.
             </p>
           </div>
         </div>

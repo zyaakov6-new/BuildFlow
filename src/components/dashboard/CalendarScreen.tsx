@@ -1,564 +1,608 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Sparkles, CheckCircle2, Clock, Calendar, RefreshCw, AlertCircle } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import {
+  Sparkles, CheckCircle2, Clock, Calendar, RefreshCw,
+  AlertCircle, X, Zap,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
-const WEEK_DAYS = ["ר", "ב", "ג", "ד", "ה", "ו", "ש"];
-
+/* ── constants ─────────────────────────────────────────────────────── */
 const HEBREW_DAYS: Record<number, string> = {
   0: "ראשון", 1: "שני", 2: "שלישי", 3: "רביעי", 4: "חמישי", 5: "שישי", 6: "שבת",
 };
+const WEEK_SHORT = ["ר", "ב", "ג", "ד", "ה", "ו", "ש"];
+const HEB_MONTHS = [
+  "ינואר","פברואר","מרץ","אפריל","מאי","יוני",
+  "יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר",
+];
 
-function fmtDate(d: Date) { return `${d.getDate()}/${d.getMonth() + 1}`; }
+// After-school / family hours per weekday (0=Sun … 6=Sat)
+const FAMILY_HOURS: Record<number, { start: number; end: number }> = {
+  0: { start: 16, end: 22 },
+  1: { start: 16, end: 22 },
+  2: { start: 16, end: 22 },
+  3: { start: 16, end: 22 },
+  4: { start: 16, end: 22 },
+  5: { start: 14, end: 22 },
+  6: { start: 9,  end: 22 },
+};
 
-function fmtTime(iso: string | undefined | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+/* ── helpers ────────────────────────────────────────────────────────── */
+function toMin(h: number, m = 0) { return h * 60 + m; }
+function minToStr(min: number) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
 }
+function dayStart(d: Date) { const r = new Date(d); r.setHours(0,0,0,0); return r; }
 
-interface UnifiedEvent {
+/* ── types ──────────────────────────────────────────────────────────── */
+interface DayEvent {
   id: string;
-  dbId: string | null;  // actual saved_moments row id (bondflow only)
+  dbId: string | null;
   title: string;
-  time: string;
-  duration: string;
-  day: string;
-  date: string;
-  sortKey: string;
-  dayIndex: number;
-  source: "bondflow" | "google";
+  startMin: number;
+  endMin: number;
+  source: "google" | "bondflow";
   completed?: boolean;
   childName?: string;
   childInitial?: string;
   childColor?: string;
 }
 
-type CalendarStatus = "loading" | "ready" | "no_token" | "expired";
+interface FreeSlot {
+  key: string;
+  startMin: number;
+  endMin: number;
+  durMin: number;
+}
 
-export default function CalendarScreen({ onNavigateToSuggestions }: { onNavigateToSuggestions?: () => void }) {
-  const [events, setEvents] = useState<UnifiedEvent[]>([]);
-  const [activeDays, setActiveDays] = useState<number[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [calStatus, setCalStatus] = useState<CalendarStatus>("loading");
-  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
+interface SugItem {
+  id: string;
+  title: string;
+  childName: string;
+  childInitial: string;
+  childColor: string;
+  durMin: number;
+  childId: string | null;
+}
 
-  const handleComplete = async (ev: UnifiedEvent) => {
-    if (!ev.dbId) return;
-    setEvents((prev) => prev.map((e) => e.id === ev.id ? { ...e, completed: true } : e));
-    try {
-      const supabase = createClient();
-      await supabase.from("saved_moments").update({ completed: true }).eq("id", ev.dbId);
-      toast.success("סומן כבוצע ✓");
-    } catch (e) {
-      console.error("Failed to complete moment:", e);
-      toast.error("שגיאה, נסה שוב");
-    }
-  };
+type CalStatus = "loading" | "ready" | "no_token" | "expired";
 
-  const handleDelete = async (ev: UnifiedEvent) => {
-    if (!ev.dbId) return;
-    setEvents((prev) => prev.filter((e) => e.id !== ev.id));
-    try {
-      const supabase = createClient();
-      await supabase.from("saved_moments").delete().eq("id", ev.dbId);
-      toast("הרגע הוסר");
-    } catch (e) {
-      console.error("Failed to delete moment:", e);
-      toast.error("שגיאה, נסה שוב");
-    }
-  };
+/* ── component ──────────────────────────────────────────────────────── */
+export default function CalendarScreen({
+  onNavigateToSuggestions,
+}: {
+  onNavigateToSuggestions?: () => void;
+}) {
+  /* selected day */
+  const [selectedDay, setSelectedDay] = useState<Date>(() => dayStart(new Date()));
 
+  /* day data */
+  const [dayEvents, setDayEvents] = useState<DayEvent[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [calStatus, setCalStatus] = useState<CalStatus>("loading");
+
+  /* suggestion pool */
+  const [suggestions, setSuggestions] = useState<SugItem[]>([]);
+  /* per-slot state */
+  const [slotIdx,    setSlotIdx]    = useState<Record<string, number>>({});
+  const [slotSaving, setSlotSaving] = useState<Record<string, boolean>>({});
+  const [slotDone,   setSlotDone]   = useState<Record<string, boolean>>({});
+
+  /* week strip — next 7 days */
+  const next7 = useMemo(() =>
+    Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(); d.setDate(d.getDate() + i); d.setHours(0,0,0,0);
+      return { date: d, short: WEEK_SHORT[d.getDay()], num: d.getDate(), isToday: i === 0 };
+    }), []);
+
+  /* ── load suggestion pool once ──────────────────────────────────── */
   useEffect(() => {
-    async function load() {
+    (async () => {
       try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
+        const sb = createClient();
+        const { data: { user } } = await sb.auth.getUser();
         if (!user) return;
+        const [{ data: kids }, { data: sug }] = await Promise.all([
+          sb.from("children").select("id, name, avatar_color").eq("user_id", user.id),
+          sb.from("suggestions")
+            .select("id, title, child_id, duration_min, prep_min, accent_color, bg_color")
+            .eq("user_id", user.id)
+            .not("status", "in", '("saved","dismissed")')
+            .limit(30),
+        ]);
+        const cMap = new Map((kids ?? []).map(c => [c.id, c]));
+        setSuggestions(
+          (sug ?? []).map(s => {
+            const c = s.child_id ? cMap.get(s.child_id) : null;
+            const n = c?.name ?? "הילד שלך";
+            return { id: s.id, title: s.title, childName: n, childInitial: n[0] ?? "?",
+                     childColor: c?.avatar_color ?? "oklch(0.72 0.18 42)",
+                     durMin: s.duration_min ?? 30, childId: s.child_id ?? null };
+          })
+        );
+      } catch (e) { console.error(e); }
+    })();
+  }, []);
 
-        const CHILD_COLORS = [
-          "oklch(0.72 0.18 42)", "oklch(0.60 0.18 280)", "oklch(0.55 0.14 140)",
-        ];
+  /* ── load events for selected day ──────────────────────────────── */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setDayEvents([]);
+      try {
+        const sb = createClient();
+        const { data: { user } } = await sb.auth.getUser();
+        if (!user || cancelled) return;
 
-        // --- 1. BondFlow saved moments ---
-        const rangeStart = new Date(); rangeStart.setHours(0, 0, 0, 0); // today midnight
-        const rangeEnd   = new Date(); rangeEnd.setDate(rangeEnd.getDate() + 7); rangeEnd.setHours(23, 59, 59, 999);
+        const dStart = dayStart(selectedDay);
+        const dEnd   = new Date(dStart); dEnd.setHours(23,59,59,999);
 
-        const { data: saved } = await supabase
-          .from("saved_moments")
-          .select("id, title, child_id, scheduled_at, duration_min")
-          .eq("user_id", user.id)
-          .gte("scheduled_at", rangeStart.toISOString())
-          .lte("scheduled_at", rangeEnd.toISOString())
-          .order("scheduled_at", { ascending: true });
+        /* BondFlow moments */
+        const [{ data: saved }, { data: kids }] = await Promise.all([
+          sb.from("saved_moments")
+            .select("id, title, child_id, scheduled_at, duration_min, completed")
+            .eq("user_id", user.id)
+            .gte("scheduled_at", dStart.toISOString())
+            .lte("scheduled_at", dEnd.toISOString())
+            .order("scheduled_at", { ascending: true }),
+          sb.from("children").select("id, name, avatar_color").eq("user_id", user.id),
+        ]);
+        const cMap = new Map((kids ?? []).map(c => [c.id, c]));
 
-        const { data: children } = await supabase
-          .from("children").select("id, name, avatar_color").eq("user_id", user.id);
-        const childMap = new Map((children ?? []).map((c) => [c.id, c]));
-
-        const bondflowEvents: UnifiedEvent[] = (saved ?? []).map((m, idx) => {
-          const child    = m.child_id ? childMap.get(m.child_id) : null;
-          const childName = child?.name ?? "הילד שלך";
-          const sched    = m.scheduled_at ? new Date(m.scheduled_at) : null;
-          const dayIndex = sched ? sched.getDay() : 0;
-          return {
-            id:           `bf-${m.id}`,
-            dbId:         m.id,
-            title:        m.title,
-            time:         sched ? fmtTime(m.scheduled_at) : "",
-            duration:     m.duration_min ? `${m.duration_min} דק'` : "20 דק'",
-            day:          sched ? (HEBREW_DAYS[dayIndex] ?? "") : "",
-            date:         sched ? fmtDate(sched) : "",
-            sortKey:      m.scheduled_at ?? "",
-            dayIndex,
-            source:       "bondflow",
-            childName,
-            childInitial: childName[0] ?? "?",
-            childColor:   child?.avatar_color ?? CHILD_COLORS[idx % CHILD_COLORS.length],
-          };
+        const bondEvents: DayEvent[] = (saved ?? []).map(m => {
+          const c  = m.child_id ? cMap.get(m.child_id) : null;
+          const cn = c?.name ?? "הילד שלך";
+          const d  = m.scheduled_at ? new Date(m.scheduled_at) : null;
+          const sm = d ? toMin(d.getHours(), d.getMinutes()) : 0;
+          return { id: `bf-${m.id}`, dbId: m.id, title: m.title,
+                   startMin: sm, endMin: sm + (m.duration_min ?? 30),
+                   source: "bondflow", completed: m.completed,
+                   childName: cn, childInitial: cn[0] ?? "?",
+                   childColor: c?.avatar_color ?? "oklch(0.65 0.14 140)" };
         });
 
-        // --- 2. Google Calendar events ---
-        let googleEvents: UnifiedEvent[] = [];
+        /* Google Calendar */
+        let gcEvents: DayEvent[] = [];
         try {
-          const gcalRes = await fetch("/api/calendar/events");
-          const gcalData = await gcalRes.json() as {
-            connected: boolean; expired?: boolean; events?: Array<{
-              id: string; summary?: string;
+          const res  = await fetch("/api/calendar/events");
+          const data = await res.json() as {
+            connected: boolean; expired?: boolean;
+            events?: Array<{ id: string; summary?: string;
               start: { dateTime?: string; date?: string };
-              end:   { dateTime?: string; date?: string };
-            }>;
+              end:   { dateTime?: string; date?: string } }>;
           };
-
-          if (!gcalData.connected) {
-            setCalStatus("no_token");
-          } else if (gcalData.expired) {
-            setCalStatus("expired");
+          if (!data.connected) {
+            if (!cancelled) setCalStatus("no_token");
+          } else if (data.expired) {
+            if (!cancelled) setCalStatus("expired");
           } else {
-            setCalStatus("ready");
-            googleEvents = (gcalData.events ?? [])
-              .filter((e) => e.summary) // skip untitled
-              .map((e) => {
-                const startISO = e.start.dateTime ?? (e.start.date ? `${e.start.date}T00:00:00` : null);
-                const endISO   = e.end.dateTime   ?? (e.end.date   ? `${e.end.date}T00:00:00`   : null);
-                const sched    = startISO ? new Date(startISO) : null;
-                const endDate  = endISO   ? new Date(endISO)   : null;
-                const allDay   = !e.start.dateTime;
-                const dayIndex = sched ? sched.getDay() : 0;
-                const durationMs = (sched && endDate) ? endDate.getTime() - sched.getTime() : 0;
-                const durationMin = Math.round(durationMs / 60000);
+            if (!cancelled) setCalStatus("ready");
+            gcEvents = (data.events ?? [])
+              .filter(e => {
+                const iso = e.start.dateTime ?? (e.start.date ? `${e.start.date}T00:00:00` : null);
+                if (!iso) return false;
+                return dayStart(new Date(iso)).getTime() === dStart.getTime();
+              })
+              .filter(e => e.summary)
+              .map(e => {
+                const sISO = e.start.dateTime ?? `${e.start.date}T00:00:00`;
+                const eISO = e.end.dateTime   ?? `${e.end.date}T00:00:00`;
+                const sd   = new Date(sISO);
+                const ed   = new Date(eISO);
+                const allD = !e.start.dateTime;
                 return {
-                  id:       `gc-${e.id}`,
-                  dbId:     null,
-                  title:    e.summary ?? "",
-                  time:     allDay ? "" : (sched ? fmtTime(startISO) : ""),
-                  duration: allDay ? "כל היום" : (durationMin > 0 ? `${durationMin} דק'` : ""),
-                  day:      sched ? (HEBREW_DAYS[dayIndex] ?? "") : "",
-                  date:     sched ? fmtDate(sched) : "",
-                  sortKey:  startISO ?? "",
-                  dayIndex,
-                  source:   "google" as const,
+                  id: `gc-${e.id}`, dbId: null, title: e.summary ?? "",
+                  startMin: allD ? 0 : toMin(sd.getHours(), sd.getMinutes()),
+                  endMin:   allD ? 24*60 : toMin(ed.getHours(), ed.getMinutes()),
+                  source: "google" as const,
                 };
               });
           }
-        } catch {
-          setCalStatus("no_token");
+        } catch { if (!cancelled) setCalStatus("no_token"); }
+
+        if (!cancelled) {
+          setDayEvents([...bondEvents, ...gcEvents].sort((a,b) => a.startMin - b.startMin));
         }
+      } catch (e) { console.error(e); }
+      finally { if (!cancelled) setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedDay]);
 
-        // --- 3. Merge and group ---
-        const all = [...bondflowEvents, ...googleEvents]
-          .filter((e) => e.day)
-          .sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  /* ── free slots ─────────────────────────────────────────────────── */
+  const freeSlots = useMemo<FreeSlot[]>(() => {
+    const dow = selectedDay.getDay();
+    const { start, end } = FAMILY_HOURS[dow];
+    const winStart = toMin(start);
+    const winEnd   = toMin(end);
 
-        setEvents(all);
-        setActiveDays([...new Set(all.filter((e) => e.source === "bondflow").map((e) => e.dayIndex))]);
-        if (calStatus === "loading") setCalStatus("ready");
-      } catch (e) {
-        console.error("CalendarScreen error:", e);
-      } finally {
-        setLoading(false);
+    const blocking = dayEvents
+      .filter(e => !(e.source === "bondflow" && e.completed))
+      .sort((a,b) => a.startMin - b.startMin);
+
+    const slots: FreeSlot[] = [];
+    let cursor = winStart;
+
+    for (const ev of blocking) {
+      const es = Math.max(ev.startMin, winStart);
+      const ee = Math.min(ev.endMin, winEnd);
+      if (es > cursor && es - cursor >= 30) {
+        slots.push({ key: `slot-${cursor}-${es}`, startMin: cursor, endMin: es, durMin: es - cursor });
       }
+      cursor = Math.max(cursor, ee);
     }
-    load();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (winEnd > cursor && winEnd - cursor >= 30) {
+      slots.push({ key: `slot-${cursor}-${winEnd}`, startMin: cursor, endMin: winEnd, durMin: winEnd - cursor });
+    }
+    return slots;
+  }, [dayEvents, selectedDay]);
 
-  // Group by date string "DD/M"
-  const grouped = events.reduce<Record<string, UnifiedEvent[]>>((acc, e) => {
-    const key = `${e.day} ${e.date}`;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(e);
-    return acc;
-  }, {});
+  /* ── timeline merge ─────────────────────────────────────────────── */
+  const timeline = useMemo(() => {
+    const items: Array<
+      { time: number; kind: "event"; ev: DayEvent } |
+      { time: number; kind: "slot";  slot: FreeSlot }
+    > = [
+      ...dayEvents.map(ev   => ({ time: ev.startMin,   kind: "event" as const, ev })),
+      ...freeSlots.filter(s => !slotDone[s.key])
+                  .map(slot => ({ time: slot.startMin, kind: "slot"  as const, slot })),
+    ];
+    return items.sort((a,b) => a.time - b.time);
+  }, [dayEvents, freeSlots, slotDone]);
 
-  // Next 7 days for the day navigation strip
-  const next7 = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(); d.setDate(d.getDate() + i);
-    const dateKey = `${HEBREW_DAYS[d.getDay()]} ${fmtDate(d)}`;
-    return {
-      dateKey,
-      dayShort: WEEK_DAYS[d.getDay()],
-      dayNum: d.getDate(),
-      isToday: i === 0,
-      hasEvents: !!grouped[dateKey],
-    };
-  });
+  /* ── actions ────────────────────────────────────────────────────── */
+  const connectGoogle = () => {
+    createClient().auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        scopes: "https://www.googleapis.com/auth/calendar.events",
+        queryParams: { access_type: "offline", prompt: "consent" },
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+  };
 
-  // Filter events by selected day (null = show all)
-  const visibleGrouped = selectedDayKey
-    ? (grouped[selectedDayKey] ? { [selectedDayKey]: grouped[selectedDayKey] } : {})
-    : grouped;
+  const handleComplete = async (ev: DayEvent) => {
+    if (!ev.dbId) return;
+    setDayEvents(p => p.map(e => e.id === ev.id ? { ...e, completed: true } : e));
+    await createClient().from("saved_moments").update({ completed: true }).eq("id", ev.dbId);
+    toast.success("סומן כבוצע ✓");
+  };
 
-  const weekNumber = Math.ceil(
-    ((new Date().getTime() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000 +
-      new Date(new Date().getFullYear(), 0, 1).getDay() + 1) / 7
-  );
+  const handleDelete = async (ev: DayEvent) => {
+    if (!ev.dbId) return;
+    setDayEvents(p => p.filter(e => e.id !== ev.id));
+    await createClient().from("saved_moments").delete().eq("id", ev.dbId);
+    toast("הרגע הוסר");
+  };
 
-  const bondflowCount = events.filter((e) => e.source === "bondflow").length;
-  const googleCount   = events.filter((e) => e.source === "google").length;
+  const handleApprove = async (slot: FreeSlot) => {
+    if (!suggestions.length || slotSaving[slot.key]) return;
+    const idx = slotIdx[slot.key] ?? 0;
+    const sug = suggestions[idx % suggestions.length];
+    setSlotSaving(p => ({ ...p, [slot.key]: true }));
+    try {
+      const sb = createClient();
+      const { data: { user } } = await sb.auth.getUser();
+      if (!user) return;
+      const schedAt = new Date(selectedDay);
+      schedAt.setHours(Math.floor(slot.startMin / 60), slot.startMin % 60, 0, 0);
+      const endAt = new Date(schedAt.getTime() + sug.durMin * 60_000);
 
+      await sb.from("suggestions").update({ status: "saved" }).eq("id", sug.id);
+      await sb.from("saved_moments").insert({
+        user_id: user.id, suggestion_id: sug.id,
+        child_id: sug.childId, title: sug.title,
+        duration_min: sug.durMin, scheduled_at: schedAt.toISOString(), completed: false,
+      });
+      await fetch("/api/calendar/add-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: sug.title, startISO: schedAt.toISOString(), endISO: endAt.toISOString() }),
+      });
+
+      setSlotDone(p => ({ ...p, [slot.key]: true }));
+      setDayEvents(p => [...p, {
+        id: `bf-new-${slot.key}`, dbId: null, title: sug.title,
+        startMin: slot.startMin, endMin: slot.startMin + sug.durMin,
+        source: "bondflow" as const, childName: sug.childName,
+        childInitial: sug.childInitial, childColor: sug.childColor,
+      }].sort((a,b) => a.startMin - b.startMin));
+      toast.success("הרגע נשמר ונוסף ליומן ✓");
+    } catch { toast.error("שגיאה, נסה שוב"); }
+    finally { setSlotSaving(p => ({ ...p, [slot.key]: false })); }
+  };
+
+  const nextSuggestion = (key: string) =>
+    setSlotIdx(p => ({ ...p, [key]: ((p[key] ?? 0) + 1) % Math.max(suggestions.length, 1) }));
+
+  /* ── day label ──────────────────────────────────────────────────── */
+  const dayLabel = `${HEBREW_DAYS[selectedDay.getDay()]}, ${selectedDay.getDate()} ב${HEB_MONTHS[selectedDay.getMonth()]}`;
+  const gcCount  = dayEvents.filter(e => e.source === "google").length;
+  const bfCount  = dayEvents.filter(e => e.source === "bondflow").length;
+
+  /* ── render ─────────────────────────────────────────────────────── */
   return (
     <div className="max-w-3xl mx-auto px-4 md:px-8 py-6">
+
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
           {calStatus === "no_token" && (
-            <button
-              onClick={() => {
-                const supabase = createClient();
-                supabase.auth.signInWithOAuth({
-                  provider: "google",
-                  options: {
-                    scopes: "https://www.googleapis.com/auth/calendar.events",
-                    queryParams: { access_type: "offline", prompt: "consent" },
-                    redirectTo: `${window.location.origin}/auth/callback`,
-                  },
-                });
-              }}
-              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-white transition-opacity hover:opacity-85"
-              style={{ background: "oklch(0.52 0.14 255)" }}
-            >
-              <Calendar className="w-3.5 h-3.5" />
-              חבר Google Calendar
+            <button onClick={connectGoogle}
+              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold text-white"
+              style={{ background: "oklch(0.52 0.14 255)" }}>
+              <Calendar className="w-3.5 h-3.5" /> חבר Google Calendar
             </button>
           )}
           {calStatus === "expired" && (
-            <button
-              onClick={() => {
-                const supabase = createClient();
-                supabase.auth.signInWithOAuth({
-                  provider: "google",
-                  options: {
-                    scopes: "https://www.googleapis.com/auth/calendar.events",
-                    queryParams: { access_type: "offline", prompt: "consent" },
-                    redirectTo: `${window.location.origin}/auth/callback`,
-                  },
-                });
-              }}
-              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold border transition-colors"
-              style={{ borderColor: "oklch(0.85 0.06 42)", color: "oklch(0.55 0.14 42)" }}
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              חדש חיבור
+            <button onClick={connectGoogle}
+              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold border"
+              style={{ borderColor: "oklch(0.85 0.06 42)", color: "oklch(0.55 0.14 42)" }}>
+              <RefreshCw className="w-3.5 h-3.5" /> חדש חיבור
             </button>
           )}
         </div>
-        <h2 className="text-xl font-black" style={{ color: "oklch(0.2 0.03 255)" }}>
-          היומן שלך
-        </h2>
+        <h2 className="text-xl font-black" style={{ color: "oklch(0.2 0.03 255)" }}>היומן שלך</h2>
       </div>
 
-      {/* Day navigation strip */}
+      {/* Week strip */}
       <div className="overflow-x-auto mb-5 -mx-1 px-1">
-        <div className="flex gap-2 flex-row-reverse" style={{ minWidth: "max-content" }}>
-          {/* "All" pill */}
-          <button
-            onClick={() => setSelectedDayKey(null)}
-            className="flex flex-col items-center gap-0.5 rounded-2xl px-3 py-2.5 flex-shrink-0 transition-all"
-            style={{
-              minWidth: "54px",
-              background: !selectedDayKey ? "oklch(0.65 0.14 140)" : "white",
-              border: `1px solid ${!selectedDayKey ? "transparent" : "oklch(0.93 0.02 85)"}`,
-              boxShadow: !selectedDayKey ? "0 2px 8px oklch(0.65 0.14 140 / 0.3)" : "none",
-            }}
-          >
-            <span className="text-xs font-bold" style={{ color: !selectedDayKey ? "white" : "oklch(0.55 0.03 255)" }}>הכל</span>
-            <span className="text-sm font-black" style={{ color: !selectedDayKey ? "white" : "oklch(0.2 0.03 255)" }}>
-              {bondflowCount + googleCount}
-            </span>
-          </button>
-          {next7.map((day) => {
-            const isSelected = selectedDayKey === day.dateKey;
+        <div className="flex gap-2" style={{ minWidth: "max-content" }}>
+          {next7.map(day => {
+            const isSel = day.date.getTime() === selectedDay.getTime();
             return (
-              <button
-                key={day.dateKey}
-                onClick={() => setSelectedDayKey(isSelected ? null : day.dateKey)}
+              <button key={day.date.toISOString()}
+                onClick={() => setSelectedDay(day.date)}
                 className="flex flex-col items-center gap-0.5 rounded-2xl px-3 py-2.5 flex-shrink-0 transition-all"
                 style={{
                   minWidth: "54px",
-                  background: isSelected ? "oklch(0.65 0.14 140)" : (day.isToday ? "oklch(0.88 0.08 140 / 0.2)" : "white"),
-                  border: `1px solid ${isSelected ? "transparent" : "oklch(0.93 0.02 85)"}`,
-                  boxShadow: isSelected ? "0 2px 8px oklch(0.65 0.14 140 / 0.3)" : "none",
-                }}
-              >
-                <span className="text-xs font-bold" style={{ color: isSelected ? "white" : "oklch(0.55 0.03 255)" }}>
-                  {day.dayShort}
-                </span>
-                <span className="text-sm font-black" style={{ color: isSelected ? "white" : "oklch(0.2 0.03 255)" }}>
-                  {day.dayNum}
-                </span>
-                <div
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ background: day.hasEvents ? (isSelected ? "white" : "oklch(0.65 0.14 140)") : "transparent" }}
-                />
+                  background: isSel ? "oklch(0.65 0.14 140)" : (day.isToday ? "oklch(0.88 0.08 140 / 0.2)" : "white"),
+                  border: `1px solid ${isSel ? "transparent" : "oklch(0.93 0.02 85)"}`,
+                  boxShadow: isSel ? "0 2px 8px oklch(0.65 0.14 140 / 0.3)" : "none",
+                }}>
+                <span className="text-xs font-bold" style={{ color: isSel ? "white" : "oklch(0.55 0.03 255)" }}>{day.short}</span>
+                <span className="text-sm font-black" style={{ color: isSel ? "white" : "oklch(0.2 0.03 255)" }}>{day.num}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* Stats row */}
-      {(bondflowCount > 0 || googleCount > 0) && (
-        <div className="flex items-center gap-3 mb-4 flex-row-reverse flex-wrap text-xs">
-          {bondflowCount > 0 && (
-            <div className="flex items-center gap-1.5 font-bold" style={{ color: "oklch(0.55 0.14 140)" }}>
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              {bondflowCount} רגעים שמורים
-            </div>
-          )}
-          {googleCount > 0 && (
-            <div className="flex items-center gap-1.5 font-semibold" style={{ color: "oklch(0.52 0.14 255)" }}>
-              <Calendar className="w-3 h-3" />
-              {googleCount} אירועי Google
-            </div>
-          )}
-          <span className="font-medium" style={{ color: "oklch(0.65 0.03 255)" }}>שבוע {weekNumber}</span>
-        </div>
-      )}
+      {/* Day header */}
+      <div className="text-right mb-4">
+        <p className="text-base font-black" style={{ color: "oklch(0.2 0.03 255)" }}>{dayLabel}</p>
+        {!loading && (
+          <p className="text-xs mt-0.5" style={{ color: "oklch(0.6 0.03 255)" }}>
+            {gcCount > 0 && `${gcCount} אירועי Google`}
+            {gcCount > 0 && bfCount > 0 && " · "}
+            {bfCount > 0 && `${bfCount} רגעים משפחתיים`}
+            {freeSlots.length > 0 && ` · ${freeSlots.length} חלונות פנויים`}
+            {gcCount === 0 && bfCount === 0 && "אין אירועים מיובאים ליום זה"}
+          </p>
+        )}
+      </div>
 
+      {/* Loading skeleton */}
       {loading && (
-        <div className="flex flex-col gap-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-2xl h-16 animate-pulse" style={{ background: "oklch(0.93 0.02 85)" }} />
+        <div className="flex flex-col gap-3 animate-pulse">
+          {[1,2,3].map(i => (
+            <div key={i} className="flex items-start gap-3">
+              <div className="w-12 h-10 rounded-xl flex-shrink-0" style={{ background: "oklch(0.93 0.02 85)" }} />
+              <div className="flex-1 h-16 rounded-2xl" style={{ background: "oklch(0.93 0.02 85)" }} />
+            </div>
           ))}
         </div>
       )}
 
-      {!loading && selectedDayKey && Object.keys(visibleGrouped).length === 0 && (
-        <div className="text-center py-10">
-          <p className="text-sm font-bold mb-1.5" style={{ color: "oklch(0.55 0.03 255)" }}>אין אירועים ביום זה</p>
-          <button
-            onClick={() => setSelectedDayKey(null)}
-            className="text-xs font-bold"
-            style={{ color: "oklch(0.58 0.14 140)" }}
-          >
-            הצג את כל האירועים ←
-          </button>
+      {/* Empty state */}
+      {!loading && timeline.length === 0 && (
+        <div className="text-center py-12">
+          <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+            style={{ background: "oklch(0.88 0.08 140 / 0.2)" }}>
+            <Calendar className="w-6 h-6" style={{ color: "oklch(0.65 0.14 140)" }} />
+          </div>
+          <p className="text-base font-black mb-2" style={{ color: "oklch(0.2 0.03 255)" }}>
+            {calStatus === "no_token" ? "Google Calendar לא מחובר" : "היום פנוי לחלוטין!"}
+          </p>
+          <p className="text-sm mb-5" style={{ color: "oklch(0.55 0.03 255)" }}>
+            {calStatus === "no_token"
+              ? "חבר את Google Calendar כדי לראות חלונות זמן פנויים"
+              : "אין אירועים. אולי זה הזמן לרגע משפחתי?"}
+          </p>
+          {calStatus === "no_token" ? (
+            <button onClick={connectGoogle}
+              className="inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-black text-white"
+              style={{ background: "oklch(0.52 0.14 255)" }}>
+              <Calendar className="w-4 h-4" /> חבר Google Calendar
+            </button>
+          ) : (
+            <button onClick={onNavigateToSuggestions}
+              className="inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-black text-white"
+              style={{ background: "linear-gradient(135deg, oklch(0.65 0.14 140), oklch(0.58 0.16 148))" }}>
+              <Sparkles className="w-4 h-4" /> מצא פעילות
+            </button>
+          )}
         </div>
       )}
 
-      {!loading && events.length > 0 && (
-        <div className="flex flex-col gap-5">
-          {Object.entries(visibleGrouped).map(([dayKey, dayEvents]) => (
-            <div key={dayKey}>
-              <div className="flex items-center gap-3 flex-row-reverse mb-2.5">
-                <div
-                  className="rounded-xl px-3 py-1 text-xs font-black text-white flex-shrink-0"
-                  style={{ background: "oklch(0.65 0.14 140)" }}
-                >
-                  {dayEvents[0]?.day}
-                </div>
-                <p className="text-xs font-medium" style={{ color: "oklch(0.65 0.03 255)" }}>
-                  {dayEvents[0]?.date}
-                </p>
-                <div className="flex-1 h-px" style={{ background: "oklch(0.91 0.02 85)" }} />
-              </div>
+      {/* Timeline */}
+      {!loading && timeline.length > 0 && (
+        <div className="flex flex-col gap-3">
+          {timeline.map(item => {
 
-              <div className="flex flex-col gap-2">
-                {dayEvents.map((ev) => (
-                  <div
-                    key={ev.id}
-                    className="rounded-2xl border flex items-center gap-3 p-3.5"
+            /* ── scheduled event ── */
+            if (item.kind === "event") {
+              const ev = item.ev;
+              const isBF = ev.source === "bondflow";
+              return (
+                <div key={ev.id} className="flex items-start gap-3">
+                  {/* Time label */}
+                  <div className="w-12 flex-shrink-0 text-right pt-3.5">
+                    <p className="text-xs font-black leading-none"
+                      style={{ color: isBF ? "oklch(0.55 0.14 140)" : "oklch(0.52 0.14 255)" }}>
+                      {minToStr(ev.startMin)}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "oklch(0.7 0.03 255)" }}>
+                      {minToStr(ev.endMin)}
+                    </p>
+                  </div>
+                  {/* Block */}
+                  <div className="flex-1 rounded-2xl border p-3.5"
                     style={{
                       background: "white",
-                      borderColor: ev.source === "bondflow"
-                        ? "oklch(0.88 0.06 140 / 0.6)"
-                        : "oklch(0.88 0.06 255 / 0.5)",
+                      borderColor: isBF ? "oklch(0.88 0.06 140 / 0.6)" : "oklch(0.88 0.06 255 / 0.5)",
                       borderLeftWidth: "3px",
-                      borderLeftColor: ev.source === "bondflow"
-                        ? "oklch(0.65 0.14 140)"
-                        : "oklch(0.52 0.14 255)",
-                      boxShadow: "0 1px 6px oklch(0 0 0 / 0.04)",
-                    }}
-                  >
-                    {/* Source badge */}
-                    <div className="flex-shrink-0">
-                      {ev.source === "bondflow" ? (
-                        <CheckCircle2 className="w-4 h-4" style={{ color: "oklch(0.65 0.14 140)" }} />
-                      ) : (
-                        <Calendar className="w-4 h-4" style={{ color: "oklch(0.52 0.14 255)" }} />
-                      )}
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1 text-right min-w-0">
-                      <p className="font-black text-sm truncate" style={{ color: "oklch(0.2 0.03 255)" }}>
-                        {ev.title}
-                      </p>
-                      <div className="flex items-center justify-end gap-2 mt-0.5">
-                        {ev.duration && (
-                          <span className="text-xs flex items-center gap-0.5" style={{ color: "oklch(0.6 0.03 255)" }}>
-                            <Clock className="w-3 h-3" />
-                            {ev.duration}
-                          </span>
-                        )}
-                        {ev.childName && ev.source === "bondflow" && (
-                          <div className="flex items-center gap-1">
-                            <span
-                              className="w-4 h-4 rounded-full text-white font-black flex items-center justify-center"
-                              style={{ background: ev.childColor, fontSize: "9px" }}
-                            >
-                              {ev.childInitial}
-                            </span>
-                            <span className="text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>{ev.childName}</span>
-                          </div>
-                        )}
-                        {ev.source === "google" && (
-                          <span className="text-xs font-semibold" style={{ color: "oklch(0.52 0.14 255)" }}>
-                            Google
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Time */}
-                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      {ev.time && (
-                        <p
-                          className="text-sm font-black"
-                          style={{ color: ev.source === "bondflow" ? "oklch(0.55 0.14 140)" : "oklch(0.52 0.14 255)" }}
-                        >
-                          {ev.time}
-                        </p>
-                      )}
-                      {!ev.time && (
-                        <span className="text-xs font-semibold" style={{ color: "oklch(0.6 0.03 255)" }}>
-                          כל היום
-                        </span>
-                      )}
-                      {ev.source === "bondflow" && (
-                        <div className="flex gap-1">
+                      borderLeftColor: isBF ? "oklch(0.65 0.14 140)" : "oklch(0.52 0.14 255)",
+                    }}>
+                    <div className="flex items-start gap-2">
+                      {/* actions for bondflow only */}
+                      {isBF && (
+                        <div className="flex gap-1 flex-shrink-0">
                           {!ev.completed && (
-                            <button
-                              onClick={() => handleComplete(ev)}
-                              title="סמן כבוצע"
-                              className="w-6 h-6 rounded-lg flex items-center justify-center transition-colors hover:bg-[oklch(0.88_0.08_140_/_0.2)]"
-                              style={{ color: "oklch(0.55 0.14 140)" }}
-                            >
+                            <button onClick={() => handleComplete(ev)}
+                              className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-[oklch(0.88_0.08_140_/_0.2)]"
+                              style={{ color: "oklch(0.55 0.14 140)" }}>
                               <CheckCircle2 className="w-3.5 h-3.5" />
                             </button>
                           )}
-                          {ev.completed && (
-                            <span className="text-xs font-bold" style={{ color: "oklch(0.55 0.14 140)" }}>✓ בוצע</span>
-                          )}
-                          <button
-                            onClick={() => handleDelete(ev)}
-                            title="הסר"
-                            className="w-6 h-6 rounded-lg flex items-center justify-center transition-colors hover:bg-[oklch(0.95_0.04_25)]"
-                            style={{ color: "oklch(0.65 0.10 25)" }}
-                          >
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                          <button onClick={() => handleDelete(ev)}
+                            className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-[oklch(0.95_0.04_25)]"
+                            style={{ color: "oklch(0.65 0.10 25)" }}>
+                            <X className="w-3 h-3" />
                           </button>
                         </div>
                       )}
+                      {/* text */}
+                      <div className="flex-1 text-right min-w-0">
+                        <div className="flex items-center justify-end gap-1.5 mb-0.5">
+                          {ev.completed && (
+                            <span className="text-xs font-bold" style={{ color: "oklch(0.55 0.14 140)" }}>✓ בוצע</span>
+                          )}
+                          <span className="text-xs font-bold rounded-full px-2 py-0.5"
+                            style={{
+                              background: isBF ? "oklch(0.88 0.08 140 / 0.2)" : "oklch(0.90 0.06 255 / 0.2)",
+                              color:      isBF ? "oklch(0.48 0.14 140)"       : "oklch(0.45 0.14 255)",
+                            }}>
+                            {isBF ? "BondFlow" : "Google"}
+                          </span>
+                        </div>
+                        <p className="font-black text-sm" style={{ color: "oklch(0.2 0.03 255)" }}>{ev.title}</p>
+                        {ev.childName && isBF && (
+                          <div className="flex items-center justify-end gap-1 mt-1">
+                            <span className="text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>{ev.childName}</span>
+                            <span className="w-4 h-4 rounded-full text-white font-black flex items-center justify-center flex-shrink-0"
+                              style={{ background: ev.childColor, fontSize: "9px" }}>
+                              {ev.childInitial}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          ))}
+                </div>
+              );
+            }
+
+            /* ── free slot suggestion ── */
+            if (item.kind === "slot") {
+              const slot = item.slot;
+              const idx  = slotIdx[slot.key] ?? 0;
+              const sug  = suggestions.length > 0 ? suggestions[idx % suggestions.length] : null;
+              const busy = slotSaving[slot.key] ?? false;
+
+              return (
+                <div key={slot.key} className="flex items-start gap-3">
+                  {/* Time label */}
+                  <div className="w-12 flex-shrink-0 text-right pt-3.5">
+                    <p className="text-xs font-black leading-none" style={{ color: "oklch(0.58 0.14 140)" }}>
+                      {minToStr(slot.startMin)}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "oklch(0.7 0.03 255)" }}>{slot.durMin} דק'</p>
+                  </div>
+                  {/* Suggestion tile */}
+                  <div className="flex-1 rounded-2xl p-3.5"
+                    style={{
+                      background: "oklch(0.97 0.02 140 / 0.5)",
+                      border: "1.5px dashed oklch(0.72 0.10 140 / 0.55)",
+                    }}>
+                    {sug ? (
+                      <>
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+                            <Zap className="w-3 h-3" style={{ color: "oklch(0.62 0.14 140)" }} />
+                            <span className="text-xs font-bold" style={{ color: "oklch(0.55 0.14 140)" }}>זמן פנוי</span>
+                          </div>
+                          <div className="flex-1 text-right min-w-0">
+                            <p className="font-black text-sm" style={{ color: "oklch(0.2 0.03 255)" }}>{sug.title}</p>
+                            <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                              <span className="text-xs flex items-center gap-0.5" style={{ color: "oklch(0.6 0.03 255)" }}>
+                                <Clock className="w-3 h-3" />{sug.durMin} דק'
+                              </span>
+                              <span className="w-4 h-4 rounded-full text-white font-black flex items-center justify-center flex-shrink-0"
+                                style={{ background: sug.childColor, fontSize: "9px" }}>
+                                {sug.childInitial}
+                              </span>
+                              <span className="text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>{sug.childName}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => nextSuggestion(slot.key)}
+                            className="flex items-center gap-1 rounded-xl px-3 py-2 text-xs font-bold border transition-all"
+                            style={{ borderColor: "oklch(0.82 0.08 140)", color: "oklch(0.52 0.14 140)", background: "white" }}>
+                            <RefreshCw className="w-3 h-3" /> אחרת
+                          </button>
+                          <button
+                            onClick={() => handleApprove(slot)}
+                            disabled={busy}
+                            className="flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-black text-white transition-all disabled:opacity-60 active:scale-[0.98]"
+                            style={{
+                              background: "linear-gradient(135deg, oklch(0.65 0.14 140), oklch(0.58 0.16 148))",
+                              boxShadow: "0 3px 8px oklch(0.65 0.14 140 / 0.3)",
+                            }}>
+                            {busy ? "שומר..." : <><CheckCircle2 className="w-3.5 h-3.5" /> אשר ולחסום ביומן</>}
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <button onClick={onNavigateToSuggestions}
+                          className="text-xs font-bold flex items-center gap-1"
+                          style={{ color: "oklch(0.52 0.14 140)" }}>
+                          <Sparkles className="w-3.5 h-3.5" /> צור הצעה
+                        </button>
+                        <p className="text-sm font-bold text-right" style={{ color: "oklch(0.45 0.03 255)" }}>
+                          חלון פנוי {minToStr(slot.startMin)}–{minToStr(slot.endMin)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            }
+
+            return null;
+          })}
         </div>
       )}
 
-      {/* Empty state - only when no day filter and no events */}
-      {!loading && events.length === 0 && !selectedDayKey && (
-        <div className="text-center py-12">
-          <div
-            className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-            style={{ background: "oklch(0.88 0.08 140 / 0.2)" }}
-          >
-            {calStatus === "no_token"
-              ? <Calendar className="w-6 h-6" style={{ color: "oklch(0.65 0.14 140)" }} />
-              : <Sparkles className="w-6 h-6" style={{ color: "oklch(0.65 0.14 140)" }} />}
-          </div>
-          {calStatus === "no_token" ? (
-            <>
-              <p className="text-base font-black mb-2" style={{ color: "oklch(0.2 0.03 255)" }}>
-                Google Calendar לא מחובר
-              </p>
-              <p className="text-sm mb-5" style={{ color: "oklch(0.55 0.03 255)" }}>
-                חבר את Google Calendar כדי לראות את כל האירועים שלך כאן
-              </p>
-              <button
-                onClick={() => {
-                  const supabase = createClient();
-                  supabase.auth.signInWithOAuth({
-                    provider: "google",
-                    options: {
-                      scopes: "https://www.googleapis.com/auth/calendar.events",
-                      queryParams: { access_type: "offline", prompt: "consent" },
-                      redirectTo: `${window.location.origin}/auth/callback`,
-                    },
-                  });
-                }}
-                className="inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-black text-white"
-                style={{ background: "oklch(0.52 0.14 255)" }}
-              >
-                <Calendar className="w-4 h-4" />
-                חבר Google Calendar
-              </button>
-            </>
-          ) : (
-            <>
-              <p className="text-base font-black mb-2" style={{ color: "oklch(0.2 0.03 255)" }}>
-                אין אירועים בטווח הזמן
-              </p>
-              <p className="text-sm" style={{ color: "oklch(0.55 0.03 255)" }}>
-                שמור הצעה כדי שתופיע כאן
-              </p>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* No token warning — events exist but calendar not connected */}
-      {!loading && events.length > 0 && calStatus === "no_token" && (
-        <div
-          className="mt-5 rounded-2xl p-4 flex items-start gap-3 flex-row-reverse"
-          style={{ background: "oklch(0.96 0.02 255 / 0.5)", border: "1px solid oklch(0.85 0.06 255 / 0.4)" }}
-        >
+      {/* Connect banner when events exist but calendar not linked */}
+      {!loading && dayEvents.length > 0 && calStatus === "no_token" && (
+        <div className="mt-5 rounded-2xl p-4 flex items-start gap-3 flex-row-reverse"
+          style={{ background: "oklch(0.96 0.02 255 / 0.5)", border: "1px solid oklch(0.85 0.06 255 / 0.4)" }}>
           <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "oklch(0.52 0.14 255)" }} />
           <div className="flex-1 text-right">
             <p className="text-xs font-bold mb-1" style={{ color: "oklch(0.38 0.12 255)" }}>
-              כדי לראות גם את אירועי Google Calendar שלך, חבר את החשבון
+              חבר Google Calendar לראות חלונות פנויים אמיתיים
             </p>
-            <button
-              onClick={() => {
-                const supabase = createClient();
-                supabase.auth.signInWithOAuth({
-                  provider: "google",
-                  options: {
-                    scopes: "https://www.googleapis.com/auth/calendar.events",
-                    queryParams: { access_type: "offline", prompt: "consent" },
-                    redirectTo: `${window.location.origin}/auth/callback`,
-                  },
-                });
-              }}
-              className="text-xs font-black"
-              style={{ color: "oklch(0.52 0.14 255)" }}
-            >
+            <button onClick={connectGoogle} className="text-xs font-black" style={{ color: "oklch(0.52 0.14 255)" }}>
               חבר עכשיו ←
             </button>
           </div>
