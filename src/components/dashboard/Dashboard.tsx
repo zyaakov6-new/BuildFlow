@@ -8,6 +8,7 @@ import {
   CheckCircle2, TrendingUp, Sparkles, X, Pencil,
 } from "lucide-react";
 import ProfileSidebar from "./ProfileSidebar";
+import { addToGoogleCalendar } from "@/lib/googleCalendar";
 import SuggestionsScreen from "./SuggestionsScreen";
 import CalendarScreen from "./CalendarScreen";
 import ReportsScreen from "./ReportsScreen";
@@ -408,10 +409,38 @@ export default function Dashboard() {
   };
 
   const handleBlock = async (id: string) => {
+    // Optimistic UI update
     setSuggestions((prev) => prev.map((s) => (s.id === id ? { ...s, blocked: true } : s)));
+
     try {
       const supabase = createClient();
-      await supabase.from("suggestions").update({ status: "saved" }).eq("id", id);
+
+      // 1. Mark suggestion as saved in our DB
+      const { data: suggestion } = await supabase
+        .from("suggestions")
+        .update({ status: "saved" })
+        .eq("id", id)
+        .select("title, duration_min, time_slot, day_label")
+        .single();
+
+      // 2. Try to add to Google Calendar if the user connected it
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && suggestion) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("google_calendar_token")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (profile?.google_calendar_token) {
+          await addToGoogleCalendar({
+            accessToken: profile.google_calendar_token,
+            title: suggestion.title,
+            durationMin: suggestion.duration_min,
+            // scheduledAt left undefined — will default to tomorrow 17:00
+          });
+        }
+      }
     } catch (e) {
       console.error("Failed to save suggestion:", e);
     }

@@ -6,6 +6,8 @@ export type Database = {
           id: string
           full_name: string | null
           avatar_url: string | null
+          google_calendar_token: string | null
+          google_calendar_refresh_token: string | null
           created_at: string
           updated_at: string
         }
@@ -13,6 +15,8 @@ export type Database = {
           id: string
           full_name?: string | null
           avatar_url?: string | null
+          google_calendar_token?: string | null
+          google_calendar_refresh_token?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -20,6 +24,8 @@ export type Database = {
           id?: string
           full_name?: string | null
           avatar_url?: string | null
+          google_calendar_token?: string | null
+          google_calendar_refresh_token?: string | null
           created_at?: string
           updated_at?: string
         }

@@ -26,12 +26,24 @@ export async function GET(request: Request) {
         },
       }
     )
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-        if (type === 'recovery') {
-          return NextResponse.redirect(new URL('/auth/reset', origin))
-        }
-        // Check if onboarding completed
+      if (type === 'recovery') {
+        return NextResponse.redirect(new URL('/auth/reset', origin))
+      }
+
+      // Store Google Calendar token if present (from Google OAuth with calendar scope)
+      const session = sessionData?.session
+      if (session?.provider_token && session.user) {
+        await supabase.from('profiles').upsert({
+          id: session.user.id,
+          google_calendar_token: session.provider_token,
+          google_calendar_refresh_token: session.provider_refresh_token ?? null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'id' })
+      }
+
+      // Check if onboarding completed
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const { data: onboarding } = await supabase
