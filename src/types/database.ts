@@ -8,6 +8,7 @@ export type Database = {
           avatar_url: string | null
           google_calendar_token: string | null
           google_calendar_refresh_token: string | null
+          free_time_slots: string[] | null
           created_at: string
         }
         Insert: {
@@ -16,6 +17,7 @@ export type Database = {
           avatar_url?: string | null
           google_calendar_token?: string | null
           google_calendar_refresh_token?: string | null
+          free_time_slots?: string[] | null
           created_at?: string
         }
         Update: {
@@ -24,6 +26,7 @@ export type Database = {
           avatar_url?: string | null
           google_calendar_token?: string | null
           google_calendar_refresh_token?: string | null
+          free_time_slots?: string[] | null
           created_at?: string
         }
         Relationships: []

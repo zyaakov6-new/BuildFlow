@@ -505,12 +505,13 @@ export async function GET(request: Request) {
     }
   }
 
-  // Fetch the user's children
-  const { data: rawChildren } = await supabase
-    .from("children")
-    .select("*")
-    .eq("user_id", user.id);
+  // Fetch children + user profile (for free_time_slots) in parallel
+  const [{ data: rawChildren }, { data: profile }] = await Promise.all([
+    supabase.from("children").select("*").eq("user_id", user.id),
+    supabase.from("profiles").select("free_time_slots").eq("id", user.id).single(),
+  ]);
   const children = rawChildren as ChildRow[] | null;
+  const freeTimeSlots: string[] = (profile?.free_time_slots ?? []) as string[];
 
   if (!children || children.length === 0) {
     return Response.json({ suggestions: [] });
@@ -559,7 +560,7 @@ export async function GET(request: Request) {
       interests: c.interests ?? [],
     }));
 
-    const aiSuggestions = await generateAISuggestions(childProfiles, recentTitles);
+    const aiSuggestions = await generateAISuggestions(childProfiles, recentTitles, freeTimeSlots);
 
     toInsert = aiSuggestions.map((s) => {
       const child = children[s.child_index] ?? children[0];

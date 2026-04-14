@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Bell,
   Globe,
@@ -14,7 +14,9 @@ import {
   Trash2,
   FileText,
   Mail,
+  Clock,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 // ---- Toggle switch ----
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -98,7 +100,58 @@ const CALENDAR_OPTIONS = [
   { id: "apple", label: "Apple Calendar", connected: false },
 ];
 
+// ---- Free time slots config ----
+const FREE_TIME_OPTIONS = [
+  { id: "weekday_afternoon",  label: "אחה\"צ שבוע",  sub: "15:30 – 17:00" },
+  { id: "weekday_evening",    label: "ערב שבוע",     sub: "17:00 – 20:30" },
+  { id: "friday_afternoon",   label: "שישי אחה\"צ",  sub: "14:00 – 18:00" },
+  { id: "friday_evening",     label: "שישי ערב",     sub: "18:00 – 22:00" },
+  { id: "saturday_morning",   label: "שבת בוקר",     sub: "09:00 – 12:00" },
+  { id: "saturday_afternoon", label: "שבת אחה\"צ",   sub: "12:00 – 17:00" },
+  { id: "saturday_evening",   label: "שבת ערב",      sub: "17:00 – 21:00" },
+];
+
+// ---- Availability chip ----
+function SlotChip({
+  label,
+  sub,
+  active,
+  onToggle,
+}: {
+  label: string;
+  sub: string;
+  active: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      className="flex flex-col items-center justify-center rounded-2xl px-3 py-2.5 transition-all border text-center"
+      style={{
+        background: active ? "oklch(0.88 0.08 140 / 0.25)" : "oklch(0.96 0.01 85)",
+        borderColor: active ? "oklch(0.65 0.14 140)" : "oklch(0.90 0.02 85)",
+        minWidth: "5.5rem",
+      }}
+    >
+      <span
+        className="text-xs font-bold leading-tight"
+        style={{ color: active ? "oklch(0.40 0.14 140)" : "oklch(0.45 0.03 255)" }}
+      >
+        {label}
+      </span>
+      <span
+        className="text-[10px] mt-0.5 leading-tight"
+        style={{ color: active ? "oklch(0.55 0.10 140)" : "oklch(0.65 0.03 255)" }}
+      >
+        {sub}
+      </span>
+    </button>
+  );
+}
+
 export default function SettingsScreen() {
+  const supabase = createClient();
+
   const [settings, setSettings] = useState({
     pushNotifications: true,
     emailDigest: false,
@@ -109,12 +162,132 @@ export default function SettingsScreen() {
     calendarSync: "google",
   });
 
+  const [freeSlots, setFreeSlots] = useState<string[]>([]);
+  const [slotsSaving, setSlotsSaving] = useState(false);
+  const [slotsSaved, setSlotsSaved] = useState(false);
+
+  // Load free_time_slots from DB on mount
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("free_time_slots")
+        .eq("id", user.id)
+        .single();
+      if (!cancelled && data?.free_time_slots) {
+        setFreeSlots(data.free_time_slots as string[]);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [supabase]);
+
+  const toggleSlot = useCallback((id: string) => {
+    setFreeSlots((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+    );
+    setSlotsSaved(false);
+  }, []);
+
+  const saveSlots = useCallback(async () => {
+    setSlotsSaving(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from("profiles")
+        .update({ free_time_slots: freeSlots })
+        .eq("id", user.id);
+    }
+    setSlotsSaving(false);
+    setSlotsSaved(true);
+    setTimeout(() => setSlotsSaved(false), 2500);
+  }, [supabase, freeSlots]);
+
   const set = (key: keyof typeof settings, val: boolean | string) =>
     setSettings((prev) => ({ ...prev, [key]: val }));
 
   return (
     <div className="pb-8">
       <div className="max-w-2xl mx-auto px-4 md:px-8 pt-6">
+
+        {/* ── Free time availability ── */}
+        <div className="mb-4">
+          <p
+            className="text-xs font-black uppercase tracking-wider mb-2 text-right px-1"
+            style={{ color: "oklch(0.6 0.03 255)" }}
+          >
+            זמני פנאי משפחתיים
+          </p>
+          <div
+            className="rounded-2xl border overflow-hidden"
+            style={{ background: "white", borderColor: "oklch(0.93 0.02 85)" }}
+          >
+            {/* Header row */}
+            <div className="flex items-center gap-3 flex-row-reverse px-4 pt-4 pb-2">
+              <div
+                className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "oklch(0.94 0.02 85)" }}
+              >
+                <Clock className="w-4 h-4" style={{ color: "oklch(0.65 0.14 140)" }} />
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-semibold" style={{ color: "oklch(0.25 0.03 255)" }}>
+                  מתי אתם פנויים לפעילות?
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: "oklch(0.6 0.03 255)" }}>
+                  הבינה המלאכותית תציע פעילויות בזמנים שמתאימים לכם
+                </p>
+              </div>
+            </div>
+
+            {/* Chips grid */}
+            <div className="flex flex-wrap gap-2 px-4 pb-4 justify-end">
+              {FREE_TIME_OPTIONS.map((opt) => (
+                <SlotChip
+                  key={opt.id}
+                  label={opt.label}
+                  sub={opt.sub}
+                  active={freeSlots.includes(opt.id)}
+                  onToggle={() => toggleSlot(opt.id)}
+                />
+              ))}
+            </div>
+
+            {/* Save button */}
+            <div
+              className="flex justify-start px-4 pb-4 border-t pt-3"
+              style={{ borderColor: "oklch(0.95 0.01 85)" }}
+            >
+              <button
+                onClick={saveSlots}
+                disabled={slotsSaving}
+                className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition-all"
+                style={{
+                  background: slotsSaved
+                    ? "oklch(0.88 0.08 140 / 0.3)"
+                    : "oklch(0.65 0.14 140)",
+                  color: slotsSaved ? "oklch(0.40 0.14 140)" : "white",
+                  opacity: slotsSaving ? 0.6 : 1,
+                }}
+              >
+                {slotsSaved ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    נשמר!
+                  </>
+                ) : slotsSaving ? (
+                  "שומר..."
+                ) : (
+                  "שמור זמנים"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Notifications */}
         <Section title="התראות">
           <SettingRow
