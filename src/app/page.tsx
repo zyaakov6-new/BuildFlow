@@ -17,11 +17,11 @@ export default function Home() {
         <Hero />
         <SocialProof />
         <Problem />
-        <HowItWorks />
         <Benefits />
-        <Pricing />
+        <HowItWorks />
         <FAQ />
         <FinalCTA />
+        <Pricing />
       </main>
       <Footer />
     </>
