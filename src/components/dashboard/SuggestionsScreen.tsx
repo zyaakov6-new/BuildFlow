@@ -205,10 +205,13 @@ export default function SuggestionsScreen() {
     setDismissed(new Set());
     setSaved(new Set());
     setKidFilter("all");
+    setPlaceFilter("all");
     try {
       const res = await fetch("/api/suggestions?force=true");
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
+      // Log AI debug so it shows in console during refresh too
+      if (json._debug) console.log("[BondFlow AI refresh]", json._debug);
       const raw: Array<{
         id: string; title: string; child_id?: string; duration_min?: number;
         time_slot?: string; day_label?: string; prep_min?: number;
@@ -264,18 +267,38 @@ export default function SuggestionsScreen() {
   // Keep ref in sync so the auto-trigger effect is never stale
   useEffect(() => { handleRefreshRef.current = () => handleRefresh(true); }, [handleRefresh]);
 
-  // Auto-refresh when every suggestion has been saved or dismissed
+  // Never show a blank suggestions page
   useEffect(() => {
-    if (
-      !loading &&
-      !refreshing &&
-      allItems.length > 0 &&
-      dismissed.size + saved.size >= allItems.length
-    ) {
+    if (loading || refreshing || allItems.length === 0) return;
+
+    // Recompute visible count inside the effect so we don't need filteredLength as a dep
+    const visibleCount = allItems.filter((s) => {
+      if (dismissed.has(s.id) || saved.has(s.id)) return false;
+      if (placeFilter !== "all" && s.place !== placeFilter) return false;
+      if (kidFilter !== "all" && s.childId !== kidFilter) return false;
+      return true;
+    }).length;
+
+    if (visibleCount > 0) return; // Something is still visible — do nothing
+
+    const filtersActive = placeFilter !== "all" || kidFilter !== "all";
+
+    if (filtersActive) {
+      // Filters are hiding everything — auto-clear them
+      const t = setTimeout(() => {
+        setPlaceFilter("all");
+        setKidFilter("all");
+      }, 700);
+      return () => clearTimeout(t);
+    }
+
+    // No active filters and all items dismissed/saved — generate new ones
+    if (dismissed.size + saved.size >= allItems.length) {
       const t = setTimeout(() => handleRefreshRef.current(), 600);
       return () => clearTimeout(t);
     }
-  }, [loading, refreshing, allItems.length, dismissed.size, saved.size]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, refreshing, allItems, dismissed, saved, placeFilter, kidFilter]);
 
   const handleSave = async (item: SuggestionItem) => {
     setSaved((prev) => new Set(prev).add(item.id));
