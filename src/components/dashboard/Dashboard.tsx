@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   Home, Calendar, Lightbulb, User, BarChart2,
-  Bell, ChevronLeft, Clock, Blocks, BookOpen,
+  ChevronLeft, Clock, Blocks, BookOpen,
   CheckCircle2, TrendingUp, Sparkles, X, Pencil,
 } from "lucide-react";
 import ProfileSidebar from "./ProfileSidebar";
@@ -659,14 +659,8 @@ export default function Dashboard() {
           borderBottom: "1px solid oklch(0.92 0.02 85)",
         }}
       >
-        {/* Bell - DOM first = visual right in RTL */}
-        <button
-          className="w-10 h-10 rounded-xl flex items-center justify-center relative flex-shrink-0"
-          style={{ background: "white", border: "1px solid oklch(0.92 0.02 85)" }}
-        >
-          <Bell className="w-4 h-4" style={{ color: "oklch(0.45 0.03 255)" }} />
-          <span className="absolute top-2 right-2 w-2 h-2 rounded-full" style={{ background: "oklch(0.72 0.18 42)" }} />
-        </button>
+        {/* Spacer - keeps avatar balanced on the left */}
+        <div className="w-10 flex-shrink-0" />
 
         {/* Desktop nav - center (hidden on mobile) */}
         <nav className="hidden md:flex items-center gap-1 flex-1 justify-center mx-4">

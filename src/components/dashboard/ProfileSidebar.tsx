@@ -87,6 +87,7 @@ const DEFAULT_DATA: UserData = {
 export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
   const router = useRouter();
   const [userData, setUserData] = useState<UserData>(DEFAULT_DATA);
+  const [sidebarLoading, setSidebarLoading] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [savingName, setSavingName] = useState(false);
@@ -99,29 +100,37 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
   const [childForm, setChildForm] = useState({ name: "", age_group: "6-8", interests: [] as string[] });
   const [savingChild, setSavingChild] = useState(false);
   const [calendarConnected, setCalendarConnected] = useState<boolean | null>(null);
+  const [upgradingPlan, setUpgradingPlan] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+    setSidebarLoading(true);
     async function load() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) { setSidebarLoading(false); return; }
 
+      type ProfileRow = { full_name: string | null; google_calendar_token: string | null; subscription_status: string | null; subscription_plan: string | null };
       const [profileRes, childrenRes, momentsRes, scoresRes] = await Promise.allSettled([
-        supabase.from("profiles").select("full_name, google_calendar_token").eq("id", user.id).maybeSingle(),
+        // @ts-ignore — subscription_status / subscription_plan not yet in generated types
+        supabase.from("profiles").select("full_name, google_calendar_token, subscription_status, subscription_plan").eq("id", user.id).maybeSingle() as unknown as Promise<{ data: ProfileRow | null; error: unknown }>,
         supabase.from("children").select("*").eq("user_id", user.id).order("created_at"),
         supabase.from("saved_moments").select("id", { count: "exact", head: true }).eq("user_id", user.id),
         supabase.from("weekly_scores").select("week_number").eq("user_id", user.id),
       ]);
 
-      const profileData = profileRes.status === "fulfilled" ? profileRes.value.data : null;
-      const kidsData    = childrenRes.status === "fulfilled" ? (childrenRes.value.data ?? []) as ChildRecord[] : [];
-      const momentsCount = momentsRes.status === "fulfilled" ? (momentsRes.value.count ?? 0) : 0;
-      const scoresData   = scoresRes.status === "fulfilled"  ? (scoresRes.value.data ?? []) : [];
+      const profileData  = profileRes.status === "fulfilled" ? (profileRes.value as { data: ProfileRow | null }).data : null;
+      const kidsData     = childrenRes.status === "fulfilled" ? (childrenRes.value.data ?? []) as ChildRecord[] : [];
+      const momentsCount = momentsRes.status === "fulfilled"  ? (momentsRes.value.count ?? 0) : 0;
+      const scoresData   = scoresRes.status === "fulfilled"   ? (scoresRes.value.data ?? []) : [];
 
       const name = profileData?.full_name ?? user.email?.split("@")[0] ?? "משתמש";
-      setCalendarConnected(!!profileData?.google_calendar_token);
+      setCalendarConnected(!!(profileData?.google_calendar_token));
       setChildren(kidsData);
+
+      const subStatus = profileData?.subscription_status ?? "free";
+      const subPlan   = profileData?.subscription_plan   ?? "free";
+      const isPremium = subStatus === "active" && subPlan !== "free";
 
       setUserData({
         name,
@@ -129,14 +138,15 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
         avatarInitial: name[0] ?? "?",
         avatarColor: "oklch(0.65 0.14 140)",
         memberSince: formatMemberSince(user.created_at),
-        plan: "free",
-        planLabel: "חינמי",
+        plan: isPremium ? "premium" : "free",
+        planLabel: isPremium ? (subPlan === "annual" ? "שנתי" : "פרימיום") : "חינמי",
         stats: {
           totalMoments: momentsCount,
           weeksActive: scoresData.length,
           childrenCount: kidsData.length,
         },
       });
+      setSidebarLoading(false);
     }
     load();
   }, [open]);
@@ -232,6 +242,36 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
     setEditingName(false);
   };
 
+  const handleUpgrade = async (plan: "premium" | "annual" = "premium") => {
+    setUpgradingPlan(true);
+    try {
+      const res  = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      const data = await res.json() as { url?: string; error?: string };
+      if (data.url) window.location.href = data.url;
+    } catch (e) {
+      console.error("Upgrade error:", e);
+    } finally {
+      setUpgradingPlan(false);
+    }
+  };
+
+  const handleManagePlan = async () => {
+    setUpgradingPlan(true);
+    try {
+      const res  = await fetch("/api/stripe/portal", { method: "POST" });
+      const data = await res.json() as { url?: string; error?: string };
+      if (data.url) window.location.href = data.url;
+    } catch (e) {
+      console.error("Portal error:", e);
+    } finally {
+      setUpgradingPlan(false);
+    }
+  };
+
   const connectGoogleCalendar = async () => {
     const supabase = createClient();
     await supabase.auth.signInWithOAuth({
@@ -294,6 +334,19 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto">
+
+          {/* ── Loading skeleton ── */}
+          {sidebarLoading && (
+            <div className="flex flex-col gap-3 px-4 pt-4 animate-pulse">
+              <div className="rounded-2xl h-20 w-full" style={{ background: "oklch(0.93 0.02 85)" }} />
+              <div className="rounded-2xl h-12 w-full" style={{ background: "oklch(0.93 0.02 85)" }} />
+              <div className="rounded-2xl h-28 w-full" style={{ background: "oklch(0.93 0.02 85)" }} />
+              <div className="rounded-2xl h-24 w-full" style={{ background: "oklch(0.93 0.02 85)" }} />
+              <div className="rounded-2xl h-40 w-full" style={{ background: "oklch(0.93 0.02 85)" }} />
+            </div>
+          )}
+
+          {!sidebarLoading && (<>
           {/* Avatar + name block */}
           <div
             className="mx-4 mt-4 rounded-2xl p-5 text-right"
@@ -428,12 +481,23 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
                   ))}
                 </ul>
 
-                {user.plan === "free" && (
+                {user.plan === "free" ? (
                   <button
-                    className="mt-4 w-full rounded-xl py-2 text-xs font-black text-white gradient-cta"
+                    onClick={() => handleUpgrade("premium")}
+                    disabled={upgradingPlan}
+                    className="mt-4 w-full rounded-xl py-2 text-xs font-black text-white gradient-cta disabled:opacity-60 active:scale-[0.98] transition-all"
                     style={{ boxShadow: "0 4px 12px oklch(0.65 0.14 140 / 0.3)" }}
                   >
-                    שדרג לפרימיום - ₪49/חודש
+                    {upgradingPlan ? "מעביר לתשלום..." : "שדרג לפרימיום - ₪49/חודש"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleManagePlan}
+                    disabled={upgradingPlan}
+                    className="mt-4 w-full rounded-xl py-2 text-xs font-bold border disabled:opacity-60 active:scale-[0.98] transition-all"
+                    style={{ borderColor: "oklch(0.75 0.03 255 / 0.4)", color: "oklch(0.72 0.05 255)" }}
+                  >
+                    {upgradingPlan ? "טוען..." : "ניהול מנוי"}
                   </button>
                 )}
               </div>
@@ -664,6 +728,7 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
           </div>
 
           <div className="h-6" />
+          </>)}
         </div>
 
         {/* Logout button */}

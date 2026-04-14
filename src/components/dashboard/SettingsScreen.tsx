@@ -165,20 +165,22 @@ export default function SettingsScreen() {
   const [freeSlots, setFreeSlots] = useState<string[]>([]);
   const [slotsSaving, setSlotsSaving] = useState(false);
   const [slotsSaved, setSlotsSaved] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(true);
 
   // Load free_time_slots from DB on mount
   useEffect(() => {
     let cancelled = false;
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) { if (!cancelled) setSettingsLoading(false); return; }
       const { data } = await supabase
         .from("profiles")
         .select("free_time_slots")
         .eq("id", user.id)
         .single();
-      if (!cancelled && data?.free_time_slots) {
-        setFreeSlots(data.free_time_slots as string[]);
+      if (!cancelled) {
+        if (data?.free_time_slots) setFreeSlots(data.free_time_slots as string[]);
+        setSettingsLoading(false);
       }
     }
     load();
@@ -208,6 +210,18 @@ export default function SettingsScreen() {
 
   const set = (key: keyof typeof settings, val: boolean | string) =>
     setSettings((prev) => ({ ...prev, [key]: val }));
+
+  if (settingsLoading) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 md:px-8 pt-6 flex flex-col gap-4 animate-pulse">
+        <div className="rounded-2xl h-10 w-48 ms-auto" style={{ background: "oklch(0.93 0.02 85)" }} />
+        <div className="rounded-2xl h-40 w-full" style={{ background: "oklch(0.93 0.02 85)" }} />
+        <div className="rounded-2xl h-10 w-48 ms-auto" style={{ background: "oklch(0.93 0.02 85)" }} />
+        <div className="rounded-2xl h-32 w-full" style={{ background: "oklch(0.93 0.02 85)" }} />
+        <div className="rounded-2xl h-32 w-full" style={{ background: "oklch(0.93 0.02 85)" }} />
+      </div>
+    );
+  }
 
   return (
     <div className="pb-8">

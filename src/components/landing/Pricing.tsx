@@ -1,9 +1,13 @@
-import { Button } from "@/components/ui/button";
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Check, Sparkles } from "lucide-react";
+import { Check, Sparkles, Loader2 } from "lucide-react";
 
 const plans = [
   {
+    id: "free",
     name: "חינמי",
     subtitle: "תמיד בחינם - כי לכל הורה מגיע",
     price: "₪0",
@@ -18,6 +22,7 @@ const plans = [
     ],
   },
   {
+    id: "premium",
     name: "פרימיום",
     subtitle: "הכי פופולרי - החוויה המלאה",
     price: "₪49",
@@ -36,6 +41,7 @@ const plans = [
     ],
   },
   {
+    id: "annual",
     name: "שנתי",
     subtitle: "הכי משתלם למשפחות מחויבות",
     price: "₪349",
@@ -53,6 +59,33 @@ const plans = [
 ];
 
 export default function Pricing() {
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
+  const handlePaidPlan = async (planId: string) => {
+    setLoadingPlan(planId);
+    try {
+      const res  = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: planId }),
+      });
+
+      // If 401 the user isn't logged in — send them to auth
+      if (res.status === 401) {
+        window.location.href = `/auth?redirect=pricing&plan=${planId}`;
+        return;
+      }
+
+      const data = await res.json() as { url?: string };
+      if (data.url) window.location.href = data.url;
+    } catch {
+      // fallback: go to auth
+      window.location.href = `/auth?redirect=pricing&plan=${planId}`;
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
+
   return (
     <section id="pricing" className="py-24 bg-white">
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
@@ -73,94 +106,111 @@ export default function Pricing() {
         </div>
 
         <div className="grid md:grid-cols-3 gap-6 items-stretch">
-          {plans.map((plan, i) => (
-            <div
-              key={i}
-              className={`rounded-3xl p-6 sm:p-7 flex flex-col gap-5 relative ${plan.highlighted ? "shadow-2xl" : "border"}`}
-              style={{
-                background: plan.highlighted ? "oklch(0.28 0.05 255)" : "white",
-                borderColor: "oklch(0.92 0.02 85)",
-                ...(plan.highlighted && { boxShadow: "0 20px 60px oklch(0.28 0.05 255 / 0.3)" }),
-              }}
-            >
-              {plan.badge && (
-                <Badge
-                  className="w-fit rounded-full px-3 py-1 text-xs font-black"
-                  style={{
-                    background: plan.highlighted ? "oklch(0.72 0.18 42)" : "oklch(0.88 0.08 140 / 0.3)",
-                    color: plan.highlighted ? "white" : "oklch(0.45 0.14 140)",
-                    border: "none",
-                  }}
-                >
-                  {plan.badge}
-                </Badge>
-              )}
-
-              <div>
-                <p
-                  className="text-xs font-black uppercase tracking-wider mb-1"
-                  style={{ color: plan.highlighted ? "oklch(0.75 0.10 140)" : "oklch(0.65 0.14 140)" }}
-                >
-                  {plan.name}
-                </p>
-                <div className="flex items-baseline gap-1.5">
-                  <span
-                    className="text-4xl font-black"
-                    style={{ color: plan.highlighted ? "white" : "oklch(0.2 0.03 255)" }}
+          {plans.map((plan) => {
+            const isBusy = loadingPlan === plan.id;
+            return (
+              <div
+                key={plan.id}
+                className={`rounded-3xl p-6 sm:p-7 flex flex-col gap-5 relative ${plan.highlighted ? "shadow-2xl" : "border"}`}
+                style={{
+                  background: plan.highlighted ? "oklch(0.28 0.05 255)" : "white",
+                  borderColor: "oklch(0.92 0.02 85)",
+                  ...(plan.highlighted && { boxShadow: "0 20px 60px oklch(0.28 0.05 255 / 0.3)" }),
+                }}
+              >
+                {plan.badge && (
+                  <Badge
+                    className="w-fit rounded-full px-3 py-1 text-xs font-black"
+                    style={{
+                      background: plan.highlighted ? "oklch(0.72 0.18 42)" : "oklch(0.88 0.08 140 / 0.3)",
+                      color: plan.highlighted ? "white" : "oklch(0.45 0.14 140)",
+                      border: "none",
+                    }}
                   >
-                    {plan.price}
-                  </span>
-                  <span
-                    className="text-sm"
+                    {plan.badge}
+                  </Badge>
+                )}
+
+                <div>
+                  <p
+                    className="text-xs font-black uppercase tracking-wider mb-1"
+                    style={{ color: plan.highlighted ? "oklch(0.75 0.10 140)" : "oklch(0.65 0.14 140)" }}
+                  >
+                    {plan.name}
+                  </p>
+                  <div className="flex items-baseline gap-1.5">
+                    <span
+                      className="text-4xl font-black"
+                      style={{ color: plan.highlighted ? "white" : "oklch(0.2 0.03 255)" }}
+                    >
+                      {plan.price}
+                    </span>
+                    <span
+                      className="text-sm"
+                      style={{ color: plan.highlighted ? "oklch(0.75 0.05 255)" : "oklch(0.55 0.03 255)" }}
+                    >
+                      /{plan.period}
+                    </span>
+                  </div>
+                  <p
+                    className="text-xs mt-1.5 leading-relaxed"
                     style={{ color: plan.highlighted ? "oklch(0.75 0.05 255)" : "oklch(0.55 0.03 255)" }}
                   >
-                    /{plan.period}
-                  </span>
+                    {plan.subtitle}
+                  </p>
                 </div>
-                <p
-                  className="text-xs mt-1.5 leading-relaxed"
-                  style={{ color: plan.highlighted ? "oklch(0.75 0.05 255)" : "oklch(0.55 0.03 255)" }}
-                >
-                  {plan.subtitle}
-                </p>
+
+                {plan.id === "free" ? (
+                  <Link
+                    href="/auth"
+                    className={`w-full rounded-2xl h-12 font-bold text-sm flex items-center justify-center gap-2 transition-opacity hover:opacity-90 border`}
+                    style={{ borderColor: "oklch(0.88 0.02 85)", color: "oklch(0.35 0.03 255)" }}
+                  >
+                    <Sparkles className="w-3.5 h-3.5" style={{ color: "oklch(0.65 0.14 140)" }} />
+                    {plan.cta}
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => handlePaidPlan(plan.id)}
+                    disabled={isBusy}
+                    className={`w-full rounded-2xl h-12 font-bold text-sm flex items-center justify-center gap-2 text-white transition-opacity hover:opacity-90 active:scale-[0.98] disabled:opacity-70 ${plan.highlighted ? "gradient-cta" : ""}`}
+                    style={
+                      plan.highlighted
+                        ? { boxShadow: "0 4px 16px oklch(0.65 0.14 140 / 0.4)" }
+                        : { background: "oklch(0.35 0.05 255)" }
+                    }
+                  >
+                    {isBusy
+                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> מעביר לתשלום...</>
+                      : <><Sparkles className="w-3.5 h-3.5" />{plan.cta}</>
+                    }
+                  </button>
+                )}
+
+                <div
+                  className="border-t"
+                  style={{ borderColor: plan.highlighted ? "oklch(1 0 0 / 0.1)" : "oklch(0.93 0.02 85)" }}
+                />
+
+                <ul className="flex flex-col gap-3 flex-1">
+                  {plan.features.map((feature, j) => (
+                    <li key={j} className="flex items-start gap-2.5">
+                      <Check
+                        className="w-4 h-4 flex-shrink-0 mt-0.5"
+                        style={{ color: plan.highlighted ? "oklch(0.75 0.14 140)" : "oklch(0.65 0.14 140)" }}
+                      />
+                      <span
+                        className="text-sm leading-relaxed"
+                        style={{ color: plan.highlighted ? "oklch(0.85 0.03 255)" : "oklch(0.45 0.03 255)" }}
+                      >
+                        {feature}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-
-              <Button
-                className={`w-full rounded-2xl h-12 font-bold text-sm ${plan.highlighted ? "gradient-cta text-white border-0 hover:opacity-90" : ""}`}
-                variant={plan.highlighted ? "default" : "outline"}
-                style={
-                  plan.highlighted
-                    ? { boxShadow: "0 4px 16px oklch(0.65 0.14 140 / 0.4)" }
-                    : { borderColor: "oklch(0.88 0.02 85)" }
-                }
-              >
-                <Sparkles className="w-3.5 h-3.5 ml-1.5" />
-                {plan.cta}
-              </Button>
-
-              <div
-                className="border-t"
-                style={{ borderColor: plan.highlighted ? "oklch(1 0 0 / 0.1)" : "oklch(0.93 0.02 85)" }}
-              />
-
-              <ul className="flex flex-col gap-3 flex-1">
-                {plan.features.map((feature, j) => (
-                  <li key={j} className="flex items-start gap-2.5">
-                    <Check
-                      className="w-4 h-4 flex-shrink-0 mt-0.5"
-                      style={{ color: plan.highlighted ? "oklch(0.75 0.14 140)" : "oklch(0.65 0.14 140)" }}
-                    />
-                    <span
-                      className="text-sm leading-relaxed"
-                      style={{ color: plan.highlighted ? "oklch(0.85 0.03 255)" : "oklch(0.45 0.03 255)" }}
-                    >
-                      {feature}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <p className="text-center text-sm mt-8" style={{ color: "oklch(0.55 0.03 255)" }}>
