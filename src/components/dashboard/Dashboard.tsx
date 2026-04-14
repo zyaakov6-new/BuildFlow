@@ -8,7 +8,6 @@ import {
   CheckCircle2, TrendingUp, Sparkles, X, Pencil,
 } from "lucide-react";
 import ProfileSidebar from "./ProfileSidebar";
-import { addToGoogleCalendar } from "@/lib/googleCalendar";
 import SuggestionsScreen from "./SuggestionsScreen";
 import CalendarScreen from "./CalendarScreen";
 import ReportsScreen from "./ReportsScreen";
@@ -537,21 +536,17 @@ export default function Dashboard() {
         completed: false,
       });
 
-      // 3. Push to Google Calendar — session token first (no updated_at bug), then DB fallback
-      const { data: { session } } = await supabase.auth.getSession();
-      const calendarToken = session?.provider_token ?? await (async () => {
-        const { data: p } = await supabase.from("profiles").select("google_calendar_token").eq("id", user.id).maybeSingle();
-        return p?.google_calendar_token ?? null;
-      })();
-
-      if (calendarToken) {
-        await addToGoogleCalendar({
-          accessToken: calendarToken,
-          title: suggestion.title,
-          durationMin: suggestion.duration_min,
-          scheduledAt: scheduledAt.toISOString(),
-        });
-      }
+      // 3. Push to Google Calendar via server-side route (handles token refresh)
+      const endDate = new Date(scheduledAt.getTime() + (suggestion.duration_min ?? 30) * 60_000);
+      await fetch("/api/calendar/add-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title:    suggestion.title,
+          startISO: scheduledAt.toISOString(),
+          endISO:   endDate.toISOString(),
+        }),
+      });
     } catch (e) {
       console.error("Failed to save suggestion:", e);
     }

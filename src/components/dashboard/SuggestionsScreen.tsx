@@ -7,7 +7,6 @@ import {
   FlaskConical, Palette, Heart,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { addToGoogleCalendar } from "@/lib/googleCalendar";
 
 const HEBREW_TO_DAY: Record<string, number> = {
   "ראשון": 0, "שני": 1, "שלישי": 2, "רביעי": 3, "חמישי": 4, "שישי": 5, "שבת": 6,
@@ -214,21 +213,17 @@ export default function SuggestionsScreen() {
         completed: false,
       });
 
-      // Try Google Calendar — session token is freshest, fall back to stored token
-      const { data: { session } } = await supabase.auth.getSession();
-      const calendarToken = session?.provider_token ?? await (async () => {
-        const { data: p } = await supabase.from("profiles").select("google_calendar_token").eq("id", user.id).maybeSingle();
-        return p?.google_calendar_token ?? null;
-      })();
-
-      if (calendarToken) {
-        await addToGoogleCalendar({
-          accessToken: calendarToken,
-          title: item.title,
-          durationMin: item.durationMin,
-          scheduledAt: scheduledAt.toISOString(),
-        });
-      }
+      // Push to Google Calendar via server-side route (handles token refresh)
+      const endDate = new Date(scheduledAt.getTime() + item.durationMin * 60_000);
+      await fetch("/api/calendar/add-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title:    item.title,
+          startISO: scheduledAt.toISOString(),
+          endISO:   endDate.toISOString(),
+        }),
+      });
     } catch (e) {
       console.error("Failed to save suggestion:", e);
     }
