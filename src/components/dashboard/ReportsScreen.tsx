@@ -245,7 +245,7 @@ export default function ReportsScreen() {
 
             <button
               onClick={async () => {
-                const text = `BondFlow השבוע: ${score} נקודות חיבור משפחתי 💚\nנבנה ב-BondFlow — bondflow.app`;
+                const text = `BondFlow השבוע: ${currentScore.score} נקודות חיבור משפחתי 💚\nנבנה ב-BondFlow — bondflow.app`;
                 try {
                   if (navigator.share) {
                     await navigator.share({ text });
