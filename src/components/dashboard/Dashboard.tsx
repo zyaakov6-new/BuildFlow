@@ -435,14 +435,18 @@ export default function Dashboard() {
         }
 
         // 3. Children (shared by suggestions + upcoming)
-        const { data: children } = await supabase
-          .from("children")
-          .select("id, name, age_group, avatar_color")
-          .eq("user_id", user.id);
+        const [{ data: children }, { data: onb }] = await Promise.all([
+          supabase.from("children").select("id, name, age_group, avatar_color").eq("user_id", user.id),
+          supabase.from("onboarding").select("completed").eq("user_id", user.id).maybeSingle(),
+        ]);
 
+        // Only redirect to onboarding if it hasn't been completed yet
         if (!children || children.length === 0) {
-          router.replace("/onboarding");
-          return;
+          if (!onb?.completed) {
+            router.replace("/onboarding");
+            return;
+          }
+          // Onboarding done but no kids yet — stay on dashboard, show empty state
         }
 
         const childMap = new Map((children ?? []).map((c) => [c.id, c]));
