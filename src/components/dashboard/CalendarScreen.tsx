@@ -92,12 +92,40 @@ export default function CalendarScreen({
   const [slotSaving, setSlotSaving] = useState<Record<string, boolean>>({});
   const [slotDone,   setSlotDone]   = useState<Record<string, boolean>>({});
 
+  /* week strip indicators: set of day timestamps (midnight) that have saved moments */
+  const [weekMomentDays, setWeekMomentDays] = useState<Set<number>>(new Set());
+
   /* week strip — next 7 days */
   const next7 = useMemo(() =>
     Array.from({ length: 7 }, (_, i) => {
       const d = new Date(); d.setDate(d.getDate() + i); d.setHours(0,0,0,0);
       return { date: d, short: WEEK_SHORT[d.getDay()], num: d.getDate(), isToday: i === 0 };
     }), []);
+
+  /* ── load week dot indicators ──────────────────────────────────── */
+  useEffect(() => {
+    (async () => {
+      try {
+        const sb = createClient();
+        const { data: { user } } = await sb.auth.getUser();
+        if (!user) return;
+        const start = next7[0].date;
+        const end   = new Date(next7[next7.length - 1].date); end.setHours(23, 59, 59, 999);
+        const { data } = await sb
+          .from("saved_moments")
+          .select("scheduled_at")
+          .eq("user_id", user.id)
+          .gte("scheduled_at", start.toISOString())
+          .lte("scheduled_at", end.toISOString());
+        const days = new Set(
+          (data ?? [])
+            .map((m) => { if (!m.scheduled_at) return -1; const d = new Date(m.scheduled_at); d.setHours(0,0,0,0); return d.getTime(); })
+            .filter((t) => t !== -1)
+        );
+        setWeekMomentDays(days);
+      } catch { /* silent */ }
+    })();
+  }, [next7]);
 
   /* ── load suggestion pool once ──────────────────────────────────── */
   useEffect(() => {
@@ -276,9 +304,14 @@ export default function CalendarScreen({
 
   const handleDelete = async (ev: DayEvent) => {
     if (!ev.dbId) return;
-    setDayEvents(p => p.filter(e => e.id !== ev.id));
+    const updated = dayEvents.filter(e => e.id !== ev.id);
+    setDayEvents(updated);
     await createClient().from("saved_moments").delete().eq("id", ev.dbId);
     toast("הרגע הוסר");
+    // Remove dot if no more bondflow events this day
+    if (!updated.some(e => e.source === "bondflow")) {
+      setWeekMomentDays(p => { const s = new Set(p); s.delete(dayStart(selectedDay).getTime()); return s; });
+    }
   };
 
   const handleApprove = async (slot: FreeSlot) => {
@@ -307,6 +340,7 @@ export default function CalendarScreen({
       });
 
       setSlotDone(p => ({ ...p, [slot.key]: true }));
+      setWeekMomentDays(p => new Set([...p, dayStart(selectedDay).getTime()]));
       setDayEvents(p => [...p, {
         id: `bf-new-${slot.key}`, dbId: null, title: sug.title,
         startMin: slot.startMin, endMin: slot.startMin + sug.durMin,
@@ -355,7 +389,8 @@ export default function CalendarScreen({
       <div className="overflow-x-auto mb-5 -mx-1 px-1">
         <div className="flex gap-2" style={{ minWidth: "max-content" }}>
           {next7.map(day => {
-            const isSel = day.date.getTime() === selectedDay.getTime();
+            const isSel    = day.date.getTime() === selectedDay.getTime();
+            const hasSaved = weekMomentDays.has(day.date.getTime());
             return (
               <button key={day.date.toISOString()}
                 onClick={() => setSelectedDay(day.date)}
@@ -368,6 +403,12 @@ export default function CalendarScreen({
                 }}>
                 <span className="text-xs font-bold" style={{ color: isSel ? "white" : "oklch(0.55 0.03 255)" }}>{day.short}</span>
                 <span className="text-sm font-black" style={{ color: isSel ? "white" : "oklch(0.2 0.03 255)" }}>{day.num}</span>
+                {/* Indicator dot: filled = saved moment, hollow = free */}
+                <div className="w-1.5 h-1.5 rounded-full mt-0.5 transition-all" style={{
+                  background: hasSaved
+                    ? (isSel ? "white" : "oklch(0.55 0.14 140)")
+                    : (isSel ? "rgba(255,255,255,0.35)" : "oklch(0.88 0.03 85)"),
+                }} />
               </button>
             );
           })}
