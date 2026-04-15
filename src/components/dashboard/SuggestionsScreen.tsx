@@ -700,10 +700,10 @@ export default function SuggestionsScreen({
                     </div>
                   </div>
                   <p className="text-xs mb-4 leading-relaxed" style={{ color: "oklch(0.72 0.05 255)" }}>
-                    בפרימיום תקבל הצעות יומיות ללא הגבלה, התאמה לפי מזג אוויר ומיקום, ועוד.
+                    בפרימיום תקבל הצעות יומיות ללא הגבלה עם התאמה מתקדמת לפי מצב רוח ומיקום.
                   </p>
                   <div className="flex flex-col gap-2 mb-4">
-                    {["הצעות יומיות ללא הגבלה", "התאמה מתקדמת - מצב רוח, מזג אוויר", "מעקב רצף + חגיגת אבני דרך"].map((f) => (
+                    {["הצעות יומיות ללא הגבלה", "התאמה מתקדמת לפי מצב רוח ומיקום", "עד 4 פרופילי ילדים"].map((f) => (
                       <div key={f} className="flex items-center gap-2 flex-row-reverse">
                         <Sparkles className="w-3 h-3 flex-shrink-0" style={{ color: "oklch(0.72 0.18 42)" }} />
                         <span className="text-xs" style={{ color: "oklch(0.82 0.03 255)" }}>{f}</span>

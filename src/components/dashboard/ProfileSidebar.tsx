@@ -8,6 +8,7 @@ import {
   Plus, Trash2, Baby, Pencil,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 
 interface ProfileSidebarProps {
   open: boolean;
@@ -29,18 +30,20 @@ interface UserData {
   };
 }
 
+const FREE_CHILD_LIMIT    = 1;
+const PREMIUM_CHILD_LIMIT = 4;
+
 const PLAN_FEATURES = {
   free: [
     "3 הצעות פעילות בשבוע",
-    "ציון חיבור בסיסי",
+    "ציון חיבור משפחתי",
     "חסימת יומן בלחיצה אחת",
+    "פרופיל ילד אחד",
   ],
   premium: [
     "הצעות יומיות ללא הגבלה",
-    "דוח חיבור שבועי מלא",
+    "התאמה מתקדמת לפי מצב רוח ומיקום",
     "עד 4 פרופילי ילדים",
-    "לוח שנה ישראלי - חגים",
-    "מעקב רצף + אבני דרך",
   ],
 };
 
@@ -153,6 +156,19 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
 
   const handleAddChild = async () => {
     if (!childForm.name.trim()) return;
+
+    // Enforce child profile limit
+    const childLimit = userData.plan === "premium" ? PREMIUM_CHILD_LIMIT : FREE_CHILD_LIMIT;
+    if (children.length >= childLimit) {
+      if (userData.plan === "free") {
+        toast.error("בחינמי ניתן פרופיל ילד אחד בלבד. שדרג לפרימיום להוסיף עד 4 ילדים.");
+      } else {
+        toast.error("הגעת למקסימום של 4 ילדים בפרימיום.");
+      }
+      setAddingChild(false);
+      return;
+    }
+
     setSavingChild(true);
     try {
       const supabase = createClient();
@@ -591,20 +607,38 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
           <div className="mx-4 mt-3">
             <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "oklch(0.93 0.02 85)", background: "white" }}>
               {/* Section header */}
-              <div className="flex items-center justify-between px-4 pt-3 pb-2">
-                <button
-                  onClick={() => { setAddingChild(true); setEditingChildId(null); setChildForm({ name: "", age_group: "6-8", interests: [] }); }}
-                  className="flex items-center gap-1 text-xs font-bold rounded-lg px-2 py-1 transition-colors hover:bg-[oklch(0.93_0.04_140_/_0.2)]"
-                  style={{ color: "oklch(0.52 0.14 140)" }}
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  הוסף
-                </button>
-                <div className="flex items-center gap-1.5 flex-row-reverse">
-                  <Baby className="w-3.5 h-3.5" style={{ color: "oklch(0.65 0.14 140)" }} />
-                  <p className="text-xs font-black" style={{ color: "oklch(0.35 0.03 255)" }}>הילדים שלי</p>
-                </div>
-              </div>
+              {(() => {
+                const childLimit = userData.plan === "premium" ? PREMIUM_CHILD_LIMIT : FREE_CHILD_LIMIT;
+                const atLimit = children.length >= childLimit;
+                return (
+                  <div className="flex items-center justify-between px-4 pt-3 pb-2">
+                    {atLimit && userData.plan === "free" ? (
+                      /* Free user at limit — show upgrade nudge */
+                      <button
+                        onClick={() => toast.error("שדרג לפרימיום להוסיף עד 4 ילדים.", { action: { label: "שדרג", onClick: () => handleUpgrade("premium") } })}
+                        className="flex items-center gap-1 text-xs font-bold rounded-lg px-2 py-1"
+                        style={{ color: "oklch(0.72 0.18 42)" }}
+                      >
+                        <Crown className="w-3.5 h-3.5" />
+                        פרימיום
+                      </button>
+                    ) : atLimit ? null : (
+                      <button
+                        onClick={() => { setAddingChild(true); setEditingChildId(null); setChildForm({ name: "", age_group: "6-8", interests: [] }); }}
+                        className="flex items-center gap-1 text-xs font-bold rounded-lg px-2 py-1 transition-colors hover:bg-[oklch(0.93_0.04_140_/_0.2)]"
+                        style={{ color: "oklch(0.52 0.14 140)" }}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        הוסף
+                      </button>
+                    )}
+                    <div className="flex items-center gap-1.5 flex-row-reverse">
+                      <Baby className="w-3.5 h-3.5" style={{ color: "oklch(0.65 0.14 140)" }} />
+                      <p className="text-xs font-black" style={{ color: "oklch(0.35 0.03 255)" }}>הילדים שלי</p>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Existing children */}
               {children.length === 0 && !addingChild && (

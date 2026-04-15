@@ -709,7 +709,7 @@ export default function Dashboard() {
       {/* ---- Screen routing ---- */}
       {activeTab === "suggestions" && <SuggestionsScreen isPremium={isPremium} onUpgrade={() => setSidebarOpen(true)} />}
       {activeTab === "calendar"    && <CalendarScreen onNavigateToSuggestions={() => setActiveTab("suggestions")} />}
-      {activeTab === "reports"     && <ReportsScreen isPremium={isPremium} onUpgrade={() => setSidebarOpen(true)} />}
+      {activeTab === "reports"     && <ReportsScreen />}
       {activeTab === "profile"     && <SettingsScreen />}
 
       {/* ---- Home screen ---- */}
