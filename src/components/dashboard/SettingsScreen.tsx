@@ -200,20 +200,22 @@ export default function SettingsScreen() {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { if (!cancelled) setSettingsLoading(false); return; }
-      const { data } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (supabase as any)
         .from("profiles")
-        // @ts-ignore — notification columns added via migration
         .select("free_time_slots, google_calendar_token, notification_push, notification_email")
         .eq("id", user.id)
-        .single();
+        .single() as { data: {
+          free_time_slots: string[] | null;
+          google_calendar_token: string | null;
+          notification_push: boolean;
+          notification_email: boolean;
+        } | null };
       if (!cancelled) {
-        if (data?.free_time_slots) setFreeSlots(data.free_time_slots as string[]);
-        // @ts-ignore
+        if (data?.free_time_slots) setFreeSlots(data.free_time_slots);
         setCalendarConnected(!!data?.google_calendar_token);
-        // @ts-ignore
-        if (data?.notification_push  !== undefined) setSettings(s => ({ ...s, pushNotifications: data.notification_push }));
-        // @ts-ignore
-        if (data?.notification_email !== undefined) setSettings(s => ({ ...s, emailDigest: data.notification_email }));
+        if (data?.notification_push  !== undefined) setSettings(s => ({ ...s, pushNotifications: data!.notification_push }));
+        if (data?.notification_email !== undefined) setSettings(s => ({ ...s, emailDigest: data!.notification_email }));
         setSettingsLoading(false);
       }
     }
