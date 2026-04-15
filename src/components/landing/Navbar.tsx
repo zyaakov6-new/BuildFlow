@@ -8,8 +8,8 @@ import { Sparkles, Menu, X } from "lucide-react";
 const navLinks = [
   { label: "איך זה עובד", href: "#how-it-works" },
   { label: "יתרונות", href: "#benefits" },
-  { label: "מחירים", href: "#pricing" },
   { label: "שאלות נפוצות", href: "#faq" },
+  { label: "מחירים", href: "#pricing" },
 ];
 
 export default function Navbar() {
