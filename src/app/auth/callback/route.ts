@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { encryptToken } from '@/lib/encrypt'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -39,8 +40,10 @@ export async function GET(request: Request) {
       if (session?.provider_token && session.user) {
         await supabase.from('profiles').upsert({
           id: session.user.id,
-          google_calendar_token: session.provider_token,
-          google_calendar_refresh_token: session.provider_refresh_token ?? null,
+          google_calendar_token: encryptToken(session.provider_token),
+          google_calendar_refresh_token: session.provider_refresh_token
+            ? encryptToken(session.provider_refresh_token)
+            : null,
         }, { onConflict: 'id' })
       }
 

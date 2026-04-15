@@ -517,15 +517,17 @@ export async function GET(request: Request) {
   // Try to get live free windows from Google Calendar
   let calendarWindows: string[] = [];
   if (profile?.google_calendar_token) {
+    const { decryptToken } = await import("@/lib/encrypt");
     try {
       calendarWindows = await getCalendarFreeWindows(
-        profile.google_calendar_token,
-        profile.google_calendar_refresh_token ?? null,
+        decryptToken(profile.google_calendar_token),
+        profile.google_calendar_refresh_token ? decryptToken(profile.google_calendar_refresh_token) : null,
         async (newToken) => {
-          // Persist refreshed token so next call doesn't need to refresh again
+          // Persist refreshed token (re-encrypt before storing)
+          const { encryptToken } = await import("@/lib/encrypt");
           await supabase
             .from("profiles")
-            .update({ google_calendar_token: newToken })
+            .update({ google_calendar_token: encryptToken(newToken) })
             .eq("id", user.id);
         },
       );

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { fetchGCalEvents, refreshAccessToken } from '@/lib/googleCalendarServer'
+import { encryptToken, decryptToken } from '@/lib/encrypt'
 
 export async function GET() {
   const supabase = await createClient()
@@ -25,13 +26,13 @@ export async function GET() {
     timeMax: futureEnd.toISOString(),
   }
 
-  let result = await fetchGCalEvents(profile.google_calendar_token, options)
+  let result = await fetchGCalEvents(decryptToken(profile.google_calendar_token), options)
 
   // Token expired — try refresh
   if (result.status === 'expired' && profile.google_calendar_refresh_token) {
-    const newToken = await refreshAccessToken(profile.google_calendar_refresh_token)
+    const newToken = await refreshAccessToken(decryptToken(profile.google_calendar_refresh_token))
     if (newToken) {
-      await supabase.from('profiles').update({ google_calendar_token: newToken }).eq('id', user.id)
+      await supabase.from('profiles').update({ google_calendar_token: encryptToken(newToken) }).eq('id', user.id)
       result = await fetchGCalEvents(newToken, options)
     }
   }
