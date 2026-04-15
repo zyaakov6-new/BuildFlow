@@ -9,7 +9,7 @@ import {
   CheckCircle2, TrendingUp, Sparkles, X, Pencil,
 } from "lucide-react";
 import ProfileSidebar from "./ProfileSidebar";
-import SuggestionsScreen from "./SuggestionsScreen";
+import FindActivityScreen from "./FindActivityScreen";
 import CalendarScreen from "./CalendarScreen";
 import ReportsScreen from "./ReportsScreen";
 import SettingsScreen from "./SettingsScreen";
@@ -707,7 +707,7 @@ export default function Dashboard() {
       </div>
 
       {/* ---- Screen routing ---- */}
-      {activeTab === "suggestions" && <SuggestionsScreen isPremium={isPremium} onUpgrade={() => setSidebarOpen(true)} />}
+      {activeTab === "suggestions" && <FindActivityScreen />}
       {activeTab === "calendar"    && <CalendarScreen onNavigateToSuggestions={() => setActiveTab("suggestions")} />}
       {activeTab === "reports"     && <ReportsScreen />}
       {activeTab === "profile"     && <SettingsScreen />}
