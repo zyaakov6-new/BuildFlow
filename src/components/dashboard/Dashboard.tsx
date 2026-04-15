@@ -404,14 +404,13 @@ export default function Dashboard() {
       try {
         const supabase = createClient();
 
-        // 1. User + session (session has provider_token for Google Calendar)
-        const [{ data: { user } }, { data: { session } }] = await Promise.all([
-          supabase.auth.getUser(),
-          supabase.auth.getSession(),
-        ]);
+        // 1. User
+        const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        // 2. Profile name + persist Google Calendar token if present in session
+        // 2. Profile — calendar token is written ONLY by /auth/callback (with encryption)
+        //    Never overwrite it from session.provider_token here, which may be a basic
+        //    (non-calendar-scope) token after a plain Google sign-in.
         // @ts-ignore — subscription columns added via migration, not yet in generated types
         const { data: profile } = await supabase
           .from("profiles")
@@ -425,14 +424,6 @@ export default function Dashboard() {
         const subStatus = profile?.subscription_status ?? "free";
         const subPlan   = profile?.subscription_plan   ?? "free";
         setIsPremium(subStatus === "active" && subPlan !== "free");
-
-        if (session?.provider_token) {
-          await supabase.from("profiles").upsert({
-            id: user.id,
-            google_calendar_token: session.provider_token,
-            google_calendar_refresh_token: session.provider_refresh_token ?? null,
-          }, { onConflict: "id" });
-        }
 
         // 3. Children (shared by suggestions + upcoming)
         const [{ data: children }, { data: onb }] = await Promise.all([

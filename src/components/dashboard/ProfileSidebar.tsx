@@ -304,6 +304,27 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
     });
   };
 
+  const [disconnecting, setDisconnecting] = useState(false);
+  const disconnectCalendar = async () => {
+    if (disconnecting) return;
+    setDisconnecting(true);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await supabase.from("profiles").update({
+        google_calendar_token: null,
+        google_calendar_refresh_token: null,
+      }).eq("id", user.id);
+      setCalendarConnected(false);
+      toast.success("Google Calendar נותק");
+    } catch {
+      toast.error("שגיאה בניתוק");
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -459,6 +480,14 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
                   <p className="text-xs font-black" style={{ color: "oklch(0.2 0.03 255)" }}>Google Calendar</p>
                   <p className="text-xs mt-0.5" style={{ color: "oklch(0.55 0.14 140)" }}>✓ מחובר</p>
                 </div>
+                <button
+                  onClick={disconnectCalendar}
+                  disabled={disconnecting}
+                  className="rounded-xl px-3 py-1.5 text-xs font-black flex-shrink-0 transition-opacity hover:opacity-75 disabled:opacity-50"
+                  style={{ background: "oklch(0.94 0.01 85)", color: "oklch(0.50 0.03 255)" }}
+                >
+                  {disconnecting ? "..." : "נתק"}
+                </button>
               </div>
             </div>
           )}
