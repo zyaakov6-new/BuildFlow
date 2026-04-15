@@ -4,7 +4,7 @@ const trustBadges = [
   { Icon: Lock, text: "נתוני היומן פרטיים לגמרי" },
   { Icon: Globe, text: "ממשק מלא בעברית" },
   { Icon: MapPin, text: "נבנה ללוח הישראלי" },
-  { Icon: Smartphone, text: "iOS + Android + Google / Apple Calendar" },
+  { Icon: Smartphone, text: "iOS + Android + Google Calendar" },
 ];
 
 export default function SocialProof() {

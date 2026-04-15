@@ -97,7 +97,6 @@ const LANGUAGES = [
 // ---- Calendar options ----
 const CALENDAR_OPTIONS = [
   { id: "google", label: "Google Calendar", connected: true },
-  { id: "apple", label: "Apple Calendar", connected: false },
 ];
 
 // ---- Free time slots config ----

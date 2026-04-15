@@ -34,9 +34,18 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           {/* לוגו */}
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl gradient-cta flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-white" />
-            </div>
+            <img
+              src="/logo.jpg"
+              alt="BondFlow"
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 9,
+                objectFit: "cover",
+                objectPosition: "50% 28%",
+                flexShrink: 0,
+              }}
+            />
             <span className="font-bold text-xl" style={{ color: "oklch(0.28 0.05 255)" }}>
               BondFlow
             </span>

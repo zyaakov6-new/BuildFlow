@@ -561,11 +561,8 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
                       className="w-full rounded-xl py-2.5 text-xs font-black text-white gradient-cta disabled:opacity-60 active:scale-[0.98] transition-all"
                       style={{ boxShadow: "0 4px 14px oklch(0.65 0.14 140 / 0.4)" }}
                     >
-                      {upgradingPlan ? "מעביר לתשלום..." : "14 יום חינם — התחל עכשיו"}
+                      {upgradingPlan ? "מעביר לתשלום..." : "שדרג לפרימיום עכשיו"}
                     </button>
-                    <p className="text-center text-xs mt-2" style={{ color: "oklch(0.62 0.03 255)" }}>
-                      ביטול בכל זמן · ללא כרטיס
-                    </p>
                   </div>
                 </div>
               </div>

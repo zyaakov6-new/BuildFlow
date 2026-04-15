@@ -31,7 +31,7 @@ const plans = [
     price: "₪39",
     period: "לחודש",
     badge: "הכי פופולרי",
-    cta: "נסה פרימיום חינם - 14 יום",
+    cta: "שדרג לפרימיום עכשיו",
     highlighted: true,
     features: [
       "הכל מהחינמי, בנוסף:",

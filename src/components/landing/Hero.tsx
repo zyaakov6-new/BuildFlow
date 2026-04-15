@@ -62,7 +62,7 @@ export default function Hero() {
           </div>
 
           <p className="text-sm" style={{ color: "oklch(0.6 0.03 255)" }}>
-            בלי כרטיס אשראי · Google Calendar · Apple Calendar · עברית מלאה
+            בלי כרטיס אשראי · Google Calendar · עברית מלאה
           </p>
 
           {/* Research stats strip */}
@@ -101,9 +101,18 @@ export default function Hero() {
 
                 <div className="px-5 pb-4">
                   <div className="flex items-center gap-2 mb-4">
-                    <div className="w-7 h-7 rounded-xl gradient-cta flex items-center justify-center">
-                      <Sparkles className="w-3.5 h-3.5 text-white" />
-                    </div>
+                    <img
+                      src="/logo.jpg"
+                      alt="BondFlow"
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 7,
+                        objectFit: "cover",
+                        objectPosition: "50% 28%",
+                        flexShrink: 0,
+                      }}
+                    />
                     <span className="font-bold text-sm" style={{ color: "oklch(0.28 0.05 255)" }}>
                       BondFlow
                     </span>
