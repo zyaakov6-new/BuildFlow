@@ -56,14 +56,18 @@ export default function Footer() {
             כל הזכויות שמורות 2025 BondFlow - נבנה בישראל 🇮🇱 למשפחות ישראליות.
           </p>
           <div className="flex gap-5">
-            {["מדיניות פרטיות", "תנאי שימוש", "צור קשר"].map((item) => (
+            {[
+              { label: "מדיניות פרטיות", href: "/privacy" },
+              { label: "תנאי שימוש",      href: "/terms" },
+              { label: "צור קשר",         href: "mailto:support@bondflow.app" },
+            ].map(({ label, href }) => (
               <a
-                key={item}
-                href="#"
+                key={label}
+                href={href}
                 className="text-xs transition-colors"
                 style={{ color: "oklch(0.55 0.05 255)" }}
               >
-                {item}
+                {label}
               </a>
             ))}
           </div>

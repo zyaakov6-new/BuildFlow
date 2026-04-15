@@ -244,7 +244,18 @@ export default function ReportsScreen() {
             </div>
 
             <button
-              onClick={() => { setShared(true); setTimeout(() => setShared(false), 2500); }}
+              onClick={async () => {
+                const text = `BondFlow השבוע: ${score} נקודות חיבור משפחתי 💚\nנבנה ב-BondFlow — bondflow.app`;
+                try {
+                  if (navigator.share) {
+                    await navigator.share({ text });
+                  } else {
+                    await navigator.clipboard.writeText(text);
+                  }
+                  setShared(true);
+                  setTimeout(() => setShared(false), 2500);
+                } catch { /* user cancelled share */ }
+              }}
               className="w-full py-3.5 flex items-center justify-center gap-2 font-bold text-sm transition-all"
               style={{
                 background: shared ? "oklch(0.58 0.16 148 / 0.6)" : "oklch(1 0 0 / 0.08)",
@@ -253,7 +264,7 @@ export default function ReportsScreen() {
               }}
             >
               <Share2 className="w-4 h-4" />
-              {shared ? "הועתק - שתף בוואטסאפ" : "שתף את הכרטיס הזה"}
+              {shared ? "הועתק ✓" : "שתף את הכרטיס הזה"}
             </button>
           </div>
 

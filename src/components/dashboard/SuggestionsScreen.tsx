@@ -113,6 +113,7 @@ export default function SuggestionsScreen({
   const [allItems, setAllItems] = useState<SuggestionItem[]>([]);
   const [children, setChildren] = useState<ChildInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [showWhy, setShowWhy] = useState(false);
@@ -197,6 +198,7 @@ export default function SuggestionsScreen({
         setAllItems(items);
       } catch (e) {
         console.error("SuggestionsScreen load error:", e);
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
@@ -367,6 +369,23 @@ export default function SuggestionsScreen({
 
   const featured = filtered[0];
   const rest = filtered.slice(1);
+
+  if (loadError) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 md:px-8 py-16 flex flex-col items-center gap-4 text-center">
+        <div className="text-4xl">😕</div>
+        <p className="font-black text-lg" style={{ color: "oklch(0.25 0.03 255)" }}>לא הצלחנו לטעון את ההצעות</p>
+        <p className="text-sm" style={{ color: "oklch(0.55 0.03 255)" }}>בדוק את החיבור לאינטרנט ונסה שוב.</p>
+        <button
+          onClick={() => { setLoadError(false); setLoading(true); setLoadTrigger(t => t + 1); }}
+          className="px-5 py-2.5 rounded-xl font-bold text-sm text-white"
+          style={{ background: "oklch(0.65 0.14 140)" }}
+        >
+          נסה שוב
+        </button>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

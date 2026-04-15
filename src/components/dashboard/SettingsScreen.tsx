@@ -150,6 +150,32 @@ function SlotChip({
 
 export default function SettingsScreen() {
   const supabase = createClient();
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    if (!confirmDelete) { setConfirmDelete(true); return; }
+    setDeletingAccount(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      // Delete user data first (cascade via RLS + triggers)
+      await Promise.all([
+        supabase.from("children").delete().eq("user_id", user.id),
+        supabase.from("saved_moments").delete().eq("user_id", user.id),
+        supabase.from("suggestions").delete().eq("user_id", user.id),
+      ]);
+      // Call server-side delete route
+      const res = await fetch("/api/account/delete", { method: "DELETE" });
+      if (!res.ok) throw new Error("delete failed");
+      await supabase.auth.signOut();
+      window.location.href = "/";
+    } catch {
+      alert("מחיקת החשבון נכשלה. אנא פנה לתמיכה בכתובת support@bondflow.app");
+      setDeletingAccount(false);
+      setConfirmDelete(false);
+    }
+  };
 
   const [settings, setSettings] = useState({
     pushNotifications: true,
@@ -458,24 +484,30 @@ export default function SettingsScreen() {
 
         {/* Privacy & Support */}
         <Section title="פרטיות ותמיכה">
-          <SettingRow
-            Icon={Shield}
-            label="מדיניות פרטיות"
-            sublabel="איך אנחנו שומרים על הנתונים שלך"
-            right={<ChevronLeft className="w-4 h-4" style={{ color: "oklch(0.7 0.03 255)" }} />}
-          />
-          <SettingRow
-            Icon={HelpCircle}
-            label="עזרה ותמיכה"
-            sublabel="שאלות? אנחנו כאן"
-            right={<ChevronLeft className="w-4 h-4" style={{ color: "oklch(0.7 0.03 255)" }} />}
-          />
-          <SettingRow
-            Icon={FileText}
-            label="תנאי שימוש"
-            sublabel=""
-            right={<ChevronLeft className="w-4 h-4" style={{ color: "oklch(0.7 0.03 255)" }} />}
-          />
+          <a href="/privacy">
+            <SettingRow
+              Icon={Shield}
+              label="מדיניות פרטיות"
+              sublabel="איך אנחנו שומרים על הנתונים שלך"
+              right={<ChevronLeft className="w-4 h-4" style={{ color: "oklch(0.7 0.03 255)" }} />}
+            />
+          </a>
+          <a href="mailto:support@bondflow.app">
+            <SettingRow
+              Icon={HelpCircle}
+              label="עזרה ותמיכה"
+              sublabel="שאלות? אנחנו כאן"
+              right={<Mail className="w-4 h-4" style={{ color: "oklch(0.7 0.03 255)" }} />}
+            />
+          </a>
+          <a href="/terms">
+            <SettingRow
+              Icon={FileText}
+              label="תנאי שימוש"
+              sublabel=""
+              right={<ChevronLeft className="w-4 h-4" style={{ color: "oklch(0.7 0.03 255)" }} />}
+            />
+          </a>
         </Section>
 
         {/* Danger zone */}
@@ -485,7 +517,9 @@ export default function SettingsScreen() {
             style={{ borderColor: "oklch(0.88 0.06 25)" }}
           >
             <button
-              className="w-full flex items-center justify-between px-4 py-3.5 text-right"
+              onClick={handleDeleteAccount}
+              disabled={deletingAccount}
+              className="w-full flex items-center justify-between px-4 py-3.5 text-right disabled:opacity-60"
               style={{ background: "oklch(0.97 0.02 25)" }}
             >
               <ChevronLeft className="w-4 h-4" style={{ color: "oklch(0.65 0.15 25)" }} />
@@ -498,10 +532,10 @@ export default function SettingsScreen() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-semibold" style={{ color: "oklch(0.45 0.18 25)" }}>
-                    מחיקת חשבון
+                    {deletingAccount ? "מוחק..." : confirmDelete ? "לחץ שוב לאישור סופי" : "מחיקת חשבון"}
                   </p>
                   <p className="text-xs mt-0.5" style={{ color: "oklch(0.6 0.10 25)" }}>
-                    פעולה זו לא ניתנת לביטול
+                    {confirmDelete ? "כל הנתונים יימחקו לצמיתות" : "פעולה זו לא ניתנת לביטול"}
                   </p>
                 </div>
               </div>

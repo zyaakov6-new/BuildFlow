@@ -14,19 +14,18 @@ import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12; // 96-bit IV recommended for GCM
 
-function getKey(): Buffer {
+function getKey(): Buffer | null {
   const hex = process.env.TOKEN_ENCRYPTION_KEY;
   if (!hex || hex.length !== 64) {
-    throw new Error(
-      "TOKEN_ENCRYPTION_KEY must be a 64-character hex string. " +
-      "Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\""
-    );
+    console.warn("[encrypt] TOKEN_ENCRYPTION_KEY missing or invalid — tokens stored as plaintext");
+    return null;
   }
   return Buffer.from(hex, "hex");
 }
 
 export function encryptToken(plaintext: string): string {
   const key = getKey();
+  if (!key) return plaintext; // no key — store plaintext (degraded mode)
   const iv = randomBytes(IV_LENGTH);
   const cipher = createCipheriv(ALGORITHM, key, iv);
   const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
@@ -35,11 +34,12 @@ export function encryptToken(plaintext: string): string {
 }
 
 export function decryptToken(value: string): string {
-  // If it doesn't look encrypted, return as-is (handles legacy plaintext values)
+  // If it doesn't look encrypted, return as-is (plaintext or degraded mode)
   if (!value || !value.includes(":")) return value;
 
   try {
     const key = getKey();
+    if (!key) return value; // no key — assume plaintext
     const parts = value.split(":");
     if (parts.length !== 3) return value;
 
@@ -52,7 +52,6 @@ export function decryptToken(value: string): string {
     decipher.setAuthTag(authTag);
     return decipher.update(ciphertext).toString("utf8") + decipher.final("utf8");
   } catch {
-    // Decryption failed — return raw value so calendar still works if key changes
     console.error("[encrypt] decryptToken failed — returning raw value");
     return value;
   }

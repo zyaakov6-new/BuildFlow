@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Check, Sparkles, Loader2 } from "lucide-react";
 import { openPaddleCheckout, getPaddlePriceId } from "@/lib/paddle";
+import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
 const plans = [
@@ -51,7 +52,7 @@ const plans = [
     highlighted: false,
     features: [
       "הכל מהפרימיום, בנוסף:",
-      "2 פרופילי הורים מסונכרנים",
+      "סיכום חיבור חודשי להדפסה",
       "סיכום חיבור חודשי להדפסה",
       "גישה מוקדמת לתכונות חדשות",
     ],
@@ -64,6 +65,12 @@ export default function Pricing() {
   const handlePaidPlan = async (planId: "premium" | "annual") => {
     setLoadingPlan(planId);
     try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        window.location.href = "/auth";
+        return;
+      }
       const priceId = await getPaddlePriceId(planId);
       if (!priceId) {
         toast.error("שגיאה בטעינת מערכת התשלום. נסה שוב בעוד רגע.");
@@ -71,6 +78,8 @@ export default function Pricing() {
       }
       await openPaddleCheckout({
         items: [{ priceId, quantity: 1 }],
+        customer: { email: user.email! },
+        customData: { supabase_user_id: user.id, plan: planId },
         settings: { displayMode: "overlay", theme: "light" },
       });
     } catch (err) {

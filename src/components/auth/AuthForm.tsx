@@ -8,13 +8,15 @@ import { createClient } from "@/lib/supabase/client";
 
 type Mode = "signin" | "signup" | "magic";
 
-export default function AuthForm() {
+export default function AuthForm({ callbackError }: { callbackError?: string }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("signin");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [magicSent, setMagicSent] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    callbackError ? "התחברות נכשלה. נסה שוב או השתמש בכתובת מייל." : null
+  );
 
   const [form, setForm] = useState({ name: "", email: "", password: "" });
 
