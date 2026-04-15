@@ -3,6 +3,8 @@ import { Heebo } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const heebo = Heebo({
   variable: "--font-heebo",
@@ -57,6 +59,8 @@ export default function RootLayout({
         <ServiceWorkerRegistration />
         <Toaster position="top-center" dir="rtl" richColors />
         {children}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
