@@ -95,9 +95,9 @@ const LANGUAGES = [
 ];
 
 // ---- Calendar options ----
-const CALENDAR_OPTIONS = [
-  { id: "google", label: "Google Calendar", connected: true },
-];
+const CALENDAR_LABELS: Record<string, string> = {
+  google: "Google Calendar",
+};
 
 // ---- Free time slots config ----
 const FREE_TIME_OPTIONS = [
@@ -191,8 +191,10 @@ export default function SettingsScreen() {
   const [slotsSaving, setSlotsSaving] = useState(false);
   const [slotsSaved, setSlotsSaved] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(true);
+  const [calendarConnected, setCalendarConnected] = useState(false);
+  const [connectingCalendar, setConnectingCalendar] = useState(false);
 
-  // Load free_time_slots from DB on mount
+  // Load free_time_slots, notification prefs, and calendar state from DB on mount
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -200,17 +202,36 @@ export default function SettingsScreen() {
       if (!user) { if (!cancelled) setSettingsLoading(false); return; }
       const { data } = await supabase
         .from("profiles")
-        .select("free_time_slots")
+        // @ts-ignore — notification columns added via migration
+        .select("free_time_slots, google_calendar_token, notification_push, notification_email")
         .eq("id", user.id)
         .single();
       if (!cancelled) {
         if (data?.free_time_slots) setFreeSlots(data.free_time_slots as string[]);
+        // @ts-ignore
+        setCalendarConnected(!!data?.google_calendar_token);
+        // @ts-ignore
+        if (data?.notification_push  !== undefined) setSettings(s => ({ ...s, pushNotifications: data.notification_push }));
+        // @ts-ignore
+        if (data?.notification_email !== undefined) setSettings(s => ({ ...s, emailDigest: data.notification_email }));
         setSettingsLoading(false);
       }
     }
     load();
     return () => { cancelled = true; };
   }, [supabase]);
+
+  const handleConnectCalendar = async () => {
+    setConnectingCalendar(true);
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        scopes: "https://www.googleapis.com/auth/calendar.events",
+        queryParams: { access_type: "offline", prompt: "consent" },
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+  };
 
   const toggleSlot = useCallback((id: string) => {
     setFreeSlots((prev) =>
@@ -233,8 +254,20 @@ export default function SettingsScreen() {
     setTimeout(() => setSlotsSaved(false), 2500);
   }, [supabase, freeSlots]);
 
-  const set = (key: keyof typeof settings, val: boolean | string) =>
+  const set = async (key: keyof typeof settings, val: boolean | string) => {
     setSettings((prev) => ({ ...prev, [key]: val }));
+    // Persist notification prefs to DB
+    const dbKey = key === "pushNotifications" ? "notification_push"
+                : key === "emailDigest"       ? "notification_email"
+                : null;
+    if (dbKey) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // @ts-ignore
+        await supabase.from("profiles").update({ [dbKey]: val }).eq("id", user.id);
+      }
+    }
+  };
 
   if (settingsLoading) {
     return (
@@ -404,37 +437,33 @@ export default function SettingsScreen() {
 
         {/* Calendar */}
         <Section title="יומן">
-          {CALENDAR_OPTIONS.map((cal) => (
-            <SettingRow
-              key={cal.id}
-              Icon={Calendar}
-              label={cal.label}
-              sublabel={cal.connected ? "מחובר ופעיל" : "לא מחובר"}
-              right={
-                cal.connected ? (
-                  <div
-                    className="flex items-center gap-1 rounded-xl px-2.5 py-1"
-                    style={{ background: "oklch(0.88 0.08 140 / 0.2)" }}
-                  >
-                    <Check className="w-3 h-3" style={{ color: "oklch(0.55 0.14 140)" }} />
-                    <span className="text-xs font-bold" style={{ color: "oklch(0.55 0.14 140)" }}>
-                      מחובר
-                    </span>
-                  </div>
-                ) : (
-                  <button
-                    className="rounded-xl px-3 py-1 text-xs font-bold border"
-                    style={{
-                      borderColor: "oklch(0.65 0.14 140)",
-                      color: "oklch(0.55 0.14 140)",
-                    }}
-                  >
-                    חבר
-                  </button>
-                )
-              }
-            />
-          ))}
+          <SettingRow
+            Icon={Calendar}
+            label={CALENDAR_LABELS.google}
+            sublabel={calendarConnected ? "מחובר ופעיל" : "לא מחובר"}
+            right={
+              calendarConnected ? (
+                <div
+                  className="flex items-center gap-1 rounded-xl px-2.5 py-1"
+                  style={{ background: "oklch(0.88 0.08 140 / 0.2)" }}
+                >
+                  <Check className="w-3 h-3" style={{ color: "oklch(0.55 0.14 140)" }} />
+                  <span className="text-xs font-bold" style={{ color: "oklch(0.55 0.14 140)" }}>
+                    מחובר
+                  </span>
+                </div>
+              ) : (
+                <button
+                  onClick={handleConnectCalendar}
+                  disabled={connectingCalendar}
+                  className="rounded-xl px-3 py-1 text-xs font-bold border disabled:opacity-60"
+                  style={{ borderColor: "oklch(0.65 0.14 140)", color: "oklch(0.55 0.14 140)" }}
+                >
+                  {connectingCalendar ? "מחבר..." : "חבר"}
+                </button>
+              )
+            }
+          />
           <SettingRow
             Icon={Smartphone}
             label="סנכרון אוטומטי"

@@ -288,9 +288,8 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
   };
 
   const handleManagePlan = async () => {
-    // Paddle doesn't have a server-generated portal URL — open the Paddle customer portal
-    // via a new tab to paddle.com/account or re-trigger checkout to update payment method
-    window.open("https://customer.paddle.com/", "_blank");
+    const email = encodeURIComponent(userData.email || "");
+    window.open(`https://customer.paddle.com/?email=${email}`, "_blank");
   };
 
   const connectGoogleCalendar = async () => {

@@ -494,12 +494,13 @@ function FamilySetup({
 // SCREEN 3 - Connect Calendar
 // ============================================================
 function CalendarConnect({
-  data, setData, onFinish, onBack,
+  data, setData, onFinish, onBack, onConnectCalendar,
 }: {
   data: FormData;
   setData: (d: FormData) => void;
   onFinish: () => void;
   onBack: () => void;
+  onConnectCalendar: () => void;
 }) {
   const GoogleLogo = () => (
     <svg className="w-6 h-6" viewBox="0 0 24 24">
@@ -622,12 +623,12 @@ function CalendarConnect({
 
         {/* Finish CTA */}
         <PrimaryButton
-          label={data.calendarConnected ? "המשך" : "המשך בלי יומן"}
-          onClick={onFinish}
+          label={data.calendarConnected ? "חבר את Google Calendar" : "המשך בלי יומן"}
+          onClick={data.calendarConnected ? onConnectCalendar : onFinish}
         />
 
         {/* Skip */}
-        {!data.calendarConnected && (
+        {data.calendarConnected && (
           <div className="mt-4 text-center">
             <button
               onClick={onFinish}
@@ -775,12 +776,13 @@ function rankActivities(children: Child[]): ActivitySuggestion[] {
 }
 
 function FirstWinScreen({
-  data, onBack, onFinish, isFinishing = false,
+  data, onBack, onFinish, isFinishing = false, onSaveActivity,
 }: {
   data: FormData;
   onBack: () => void;
   onFinish: () => void;
   isFinishing?: boolean;
+  onSaveActivity?: (activity: ActivitySuggestion) => Promise<void>;
 }) {
   const pool = rankActivities(data.children);
   const [index, setIndex] = useState(0);
@@ -801,7 +803,10 @@ function FirstWinScreen({
     }, 220);
   };
 
-  const handleSave = () => setSaved(true);
+  const handleSave = async () => {
+    if (onSaveActivity) await onSaveActivity(activity);
+    setSaved(true);
+  };
 
   return (
     <div className="min-h-screen" style={{ background: "oklch(0.97 0.01 85)" }}>
@@ -1002,6 +1007,71 @@ export default function OnboardingFlow() {
     if (step > 1) setStep((s) => (s - 1) as StepNum);
   };
 
+  /** Save form data + mark complete + trigger Google OAuth */
+  const handleConnectCalendar = async () => {
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setSaving(false); return; }
+
+      await supabase.from("onboarding").upsert({
+        user_id: user.id,
+        completed: true,
+        calendar_connected: "google",
+        completed_at: new Date().toISOString(),
+      }, { onConflict: "user_id" });
+
+      const validChildren = data.children.filter((c) => c.name.trim().length > 0);
+      if (validChildren.length > 0) {
+        const CHILD_COLOR_ACCENTS = ["oklch(0.72 0.18 42)", "oklch(0.58 0.18 280)", "oklch(0.55 0.14 140)"];
+        await supabase.from("children").upsert(
+          validChildren.map((c, idx) => ({
+            user_id: user.id,
+            name: c.name.trim(),
+            age_group: c.ageGroup,
+            interests: c.interests,
+            avatar_color: CHILD_COLOR_ACCENTS[idx % CHILD_COLOR_ACCENTS.length],
+          }))
+        );
+      }
+
+      await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          scopes: "https://www.googleapis.com/auth/calendar.events",
+          queryParams: { access_type: "offline", prompt: "consent" },
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+    } catch (e) {
+      console.error("handleConnectCalendar error:", e);
+      setSaving(false);
+    }
+  };
+
+  /** Insert the onboarding preview activity as a real saved_moment */
+  const handleSaveActivity = async (activity: ActivitySuggestion) => {
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const [hStr] = (activity.timeSlot.split("-")[0] ?? "17:30").trim().split(":");
+      const hours = parseInt(hStr) || 17;
+      const scheduledAt = new Date();
+      scheduledAt.setHours(hours, 0, 0, 0);
+      if (scheduledAt <= new Date()) scheduledAt.setDate(scheduledAt.getDate() + 1);
+      await supabase.from("saved_moments").insert({
+        user_id: user.id,
+        title: activity.title,
+        scheduled_at: scheduledAt.toISOString(),
+        duration_min: parseInt(activity.duration) || 20,
+      });
+    } catch (e) {
+      console.error("handleSaveActivity error:", e);
+    }
+  };
+
   const handleFinish = async () => {
     setSaving(true);
     try {
@@ -1065,6 +1135,7 @@ export default function OnboardingFlow() {
         setData={setData}
         onFinish={advance}
         onBack={retreat}
+        onConnectCalendar={handleConnectCalendar}
       />
     );
 
@@ -1074,6 +1145,7 @@ export default function OnboardingFlow() {
       onBack={retreat}
       onFinish={handleFinish}
       isFinishing={saving}
+      onSaveActivity={handleSaveActivity}
     />
   );
 }

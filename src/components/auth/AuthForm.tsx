@@ -98,8 +98,8 @@ export default function AuthForm({ callbackError }: { callbackError?: string }) 
         redirectTo: `${window.location.origin}/auth/callback`,
         // Request Google Calendar access when signing in with Google
         ...(provider === "google" && {
-          scopes: "https://www.googleapis.com/auth/calendar.readonly",
-          queryParams: { access_type: "offline" },
+          scopes: "https://www.googleapis.com/auth/calendar.events",
+          queryParams: { access_type: "offline", prompt: "consent" },
         }),
       },
     });
