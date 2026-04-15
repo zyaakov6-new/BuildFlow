@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 /**
- * Returns Paddle client config to the browser.
- * Reads from server-side env vars so no NEXT_PUBLIC_ compile-time baking is needed.
- * Client token and price IDs are not secrets — they're meant to be in the browser.
+ * Returns Paddle client config to authenticated users only.
  */
 export async function GET() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   return NextResponse.json({
     token:  (process.env.PADDLE_CLIENT_TOKEN  ?? "").trim().replace(/^["']|["']$/g, ""),
     prices: {

@@ -1,7 +1,10 @@
-import Anthropic from "@anthropic-ai/sdk";
-
-// Simple one-shot test — visit /api/test-ai in the browser to check Claude
+// Development-only endpoint — disabled in production
 export async function GET() {
+  if (process.env.NODE_ENV !== "development") {
+    return Response.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const { default: Anthropic } = await import("@anthropic-ai/sdk");
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return Response.json({ ok: false, error: "ANTHROPIC_API_KEY not set" });
@@ -16,7 +19,7 @@ export async function GET() {
     });
 
     const text = response.content.find((b) => b.type === "text");
-    return Response.json({ ok: true, reply: text?.type === "text" ? text.text : null, model: response.model });
+    return Response.json({ ok: true, reply: text?.type === "text" ? text.text : null });
   } catch (err) {
     return Response.json({ ok: false, error: err instanceof Error ? err.message : String(err) });
   }

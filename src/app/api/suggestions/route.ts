@@ -499,10 +499,7 @@ export async function GET(request: Request) {
       .eq("status", "pending");
 
     if (existing && existing.length > 0) {
-      return Response.json({
-        suggestions: existing,
-        _debug: { aiUsed: false, aiError: "cache hit — existing pending suggestions returned", keyPresent: !!process.env.ANTHROPIC_API_KEY },
-      });
+      return Response.json({ suggestions: existing });
     }
   }
 
@@ -647,13 +644,8 @@ export async function GET(request: Request) {
 
   const suggestions = error ? toInsert : inserted;
 
-  // _debug is visible in browser DevTools Network tab — safe (no secrets)
-  return Response.json({
-    suggestions,
-    _debug: {
-      aiUsed: aiError === null,
-      aiError,
-      keyPresent: !!process.env.ANTHROPIC_API_KEY,
-    },
-  });
+  if (process.env.NODE_ENV === "development") {
+    console.debug("[suggestions] aiUsed:", aiError === null, "aiError:", aiError);
+  }
+  return Response.json({ suggestions });
 }

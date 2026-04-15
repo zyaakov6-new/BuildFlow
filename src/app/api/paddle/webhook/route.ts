@@ -57,7 +57,11 @@ export async function POST(req: NextRequest) {
   const sigHeader = req.headers.get("paddle-signature") ?? "";
   const secret    = process.env.PADDLE_WEBHOOK_SECRET ?? "";
 
-  if (secret && !verifyPaddleSignature(body, sigHeader, secret)) {
+  if (!secret) {
+    console.error("PADDLE_WEBHOOK_SECRET is not configured — rejecting webhook");
+    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+  }
+  if (!verifyPaddleSignature(body, sigHeader, secret)) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
