@@ -450,80 +450,110 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
 
           {/* Subscription card */}
           <div className="mx-4 mt-3">
-            <div
-              className="rounded-2xl p-4 relative overflow-hidden"
-              style={{
-                background: user.plan === "premium"
-                  ? "oklch(0.28 0.05 255)"
-                  : "oklch(0.95 0.03 85)",
-              }}
-            >
-              <div className="relative z-10">
-                <div className="flex items-center justify-between mb-3">
-                  <div
-                    className="flex items-center gap-1.5 rounded-xl px-2.5 py-1"
-                    style={{
-                      background: user.plan === "premium"
-                        ? "oklch(0.72 0.18 42)"
-                        : "oklch(0.88 0.02 85)",
-                    }}
-                  >
-                    {user.plan === "premium"
-                      ? <Crown className="w-3 h-3 text-white" />
-                      : <Sparkles className="w-3 h-3" style={{ color: "oklch(0.55 0.03 255)" }} />}
-                    <span
-                      className="text-xs font-black"
-                      style={{ color: user.plan === "premium" ? "white" : "oklch(0.45 0.03 255)" }}
-                    >
-                      {user.planLabel}
-                    </span>
+            {user.plan === "premium" ? (
+              /* ── Premium user: dark card with all features ── */
+              <div
+                className="rounded-2xl p-4 relative overflow-hidden"
+                style={{ background: "oklch(0.28 0.05 255)", boxShadow: "0 4px 20px oklch(0.28 0.05 255 / 0.3)" }}
+              >
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-1.5 rounded-xl px-2.5 py-1" style={{ background: "oklch(0.72 0.18 42)" }}>
+                      <Crown className="w-3 h-3 text-white" />
+                      <span className="text-xs font-black text-white">{user.planLabel}</span>
+                    </div>
+                    <p className="text-xs font-bold text-white">מנוי פעיל</p>
                   </div>
-                  <p
-                    className="text-xs font-bold"
-                    style={{ color: user.plan === "premium" ? "white" : "oklch(0.35 0.03 255)" }}
-                  >
-                    מנוי פעיל
-                  </p>
-                </div>
-
-                <ul className="flex flex-col gap-1.5 text-right">
-                  {PLAN_FEATURES[user.plan].map((f, i) => (
-                    <li key={i} className="flex items-center gap-2 flex-row-reverse">
-                      <CheckCircle2
-                        className="w-3 h-3 flex-shrink-0"
-                        style={{ color: "oklch(0.65 0.14 140)" }}
-                      />
-                      <span
-                        className="text-xs"
-                        style={{ color: user.plan === "premium" ? "oklch(0.75 0.05 255)" : "oklch(0.5 0.03 255)" }}
-                      >
-                        {f}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-
-                {user.plan === "free" ? (
-                  <button
-                    onClick={() => handleUpgrade("premium")}
-                    disabled={upgradingPlan}
-                    className="mt-4 w-full rounded-xl py-2 text-xs font-black text-white gradient-cta disabled:opacity-60 active:scale-[0.98] transition-all"
-                    style={{ boxShadow: "0 4px 12px oklch(0.65 0.14 140 / 0.3)" }}
-                  >
-                    {upgradingPlan ? "מעביר לתשלום..." : "שדרג לפרימיום - ₪39/חודש"}
-                  </button>
-                ) : (
+                  <ul className="flex flex-col gap-1.5 text-right mb-4">
+                    {[...PLAN_FEATURES.free, ...PLAN_FEATURES.premium].map((f, i) => (
+                      <li key={i} className="flex items-center gap-2 flex-row-reverse">
+                        <CheckCircle2 className="w-3 h-3 flex-shrink-0" style={{ color: "oklch(0.65 0.14 140)" }} />
+                        <span className="text-xs" style={{ color: "oklch(0.78 0.04 255)" }}>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
                   <button
                     onClick={handleManagePlan}
-                    disabled={upgradingPlan}
-                    className="mt-4 w-full rounded-xl py-2 text-xs font-bold border disabled:opacity-60 active:scale-[0.98] transition-all"
+                    className="w-full rounded-xl py-2 text-xs font-bold border transition-all active:scale-[0.98]"
                     style={{ borderColor: "oklch(0.75 0.03 255 / 0.4)", color: "oklch(0.72 0.05 255)" }}
                   >
-                    {upgradingPlan ? "טוען..." : "ניהול מנוי"}
+                    ניהול מנוי
                   </button>
-                )}
+                </div>
               </div>
-            </div>
+            ) : (
+              /* ── Free user: split view showing what they have + what they're missing ── */
+              <div className="flex flex-col gap-2">
+                {/* What they have now */}
+                <div className="rounded-2xl p-4 border" style={{ background: "white", borderColor: "oklch(0.90 0.02 85)" }}>
+                  <div className="flex items-center justify-end gap-2 mb-3">
+                    <p className="text-xs font-black" style={{ color: "oklch(0.35 0.03 255)" }}>מה יש לך עכשיו</p>
+                    <div className="flex items-center gap-1 rounded-lg px-2 py-0.5" style={{ background: "oklch(0.93 0.02 85)" }}>
+                      <Sparkles className="w-3 h-3" style={{ color: "oklch(0.55 0.03 255)" }} />
+                      <span className="text-xs font-black" style={{ color: "oklch(0.45 0.03 255)" }}>חינמי</span>
+                    </div>
+                  </div>
+                  <ul className="flex flex-col gap-1.5 text-right">
+                    {PLAN_FEATURES.free.map((f, i) => (
+                      <li key={i} className="flex items-center gap-2 flex-row-reverse">
+                        <CheckCircle2 className="w-3 h-3 flex-shrink-0" style={{ color: "oklch(0.55 0.14 140)" }} />
+                        <span className="text-xs" style={{ color: "oklch(0.45 0.03 255)" }}>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* What Premium unlocks */}
+                <div
+                  className="rounded-2xl p-4 relative overflow-hidden"
+                  style={{
+                    background: "linear-gradient(135deg, oklch(0.28 0.05 255), oklch(0.32 0.08 265))",
+                    boxShadow: "0 4px 20px oklch(0.28 0.05 255 / 0.25)",
+                  }}
+                >
+                  {/* decorative glow */}
+                  <div className="absolute -top-5 -left-5 w-20 h-20 rounded-full opacity-20 blur-xl pointer-events-none" style={{ background: "oklch(0.65 0.14 140)" }} />
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-end gap-2 mb-3">
+                      <p className="text-xs font-black text-white">מה פרימיום מוסיף</p>
+                      <div className="flex items-center gap-1 rounded-lg px-2 py-0.5" style={{ background: "oklch(0.72 0.18 42)" }}>
+                        <Crown className="w-3 h-3 text-white" />
+                        <span className="text-xs font-black text-white">פרימיום</span>
+                      </div>
+                    </div>
+                    <ul className="flex flex-col gap-1.5 text-right mb-4">
+                      {PLAN_FEATURES.premium.map((f, i) => (
+                        <li key={i} className="flex items-center gap-2 flex-row-reverse">
+                          <Sparkles className="w-3 h-3 flex-shrink-0" style={{ color: "oklch(0.72 0.18 42)" }} />
+                          <span className="text-xs" style={{ color: "oklch(0.82 0.03 255)" }}>{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    {/* Pricing */}
+                    <div className="rounded-xl p-3 mb-3 text-center" style={{ background: "oklch(1 0 0 / 0.08)" }}>
+                      <div className="flex items-baseline gap-1 justify-center mb-0.5">
+                        <span className="text-2xl font-black text-white">₪39</span>
+                        <span className="text-xs" style={{ color: "oklch(0.72 0.04 255)" }}>/חודש</span>
+                      </div>
+                      <p className="text-xs" style={{ color: "oklch(0.68 0.03 255)" }}>או ₪299/שנה — חסוך 36%</p>
+                    </div>
+
+                    <button
+                      onClick={() => handleUpgrade("premium")}
+                      disabled={upgradingPlan}
+                      className="w-full rounded-xl py-2.5 text-xs font-black text-white gradient-cta disabled:opacity-60 active:scale-[0.98] transition-all"
+                      style={{ boxShadow: "0 4px 14px oklch(0.65 0.14 140 / 0.4)" }}
+                    >
+                      {upgradingPlan ? "מעביר לתשלום..." : "14 יום חינם — התחל עכשיו"}
+                    </button>
+                    <p className="text-center text-xs mt-2" style={{ color: "oklch(0.62 0.03 255)" }}>
+                      ביטול בכל זמן · ללא כרטיס
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Activity stats */}

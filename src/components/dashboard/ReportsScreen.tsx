@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Clock, Calendar, TrendingUp, Share2, Sparkles } from "lucide-react";
+import { Clock, Calendar, TrendingUp, Share2, Sparkles, Crown, Lock } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 function WeekBar({ label, score, isCurrent }: { label: string; score: number; isCurrent?: boolean }) {
@@ -55,7 +55,13 @@ function getWeekLabel(weekNum: number, currentWeek: number): string {
   return `שב' ${weekNum}`;
 }
 
-export default function ReportsScreen() {
+export default function ReportsScreen({
+  isPremium = false,
+  onUpgrade,
+}: {
+  isPremium?: boolean;
+  onUpgrade?: () => void;
+}) {
   const [shared, setShared] = useState(false);
   const [loading, setLoading] = useState(true);
   const [scores, setScores] = useState<WeekScore[]>([]);
@@ -257,64 +263,115 @@ export default function ReportsScreen() {
             </button>
           </div>
 
-          {/* Top moments */}
-          {topMoments.length > 0 && (
-            <div className="mb-6">
-              <p className="text-base font-black text-right mb-3" style={{ color: "oklch(0.2 0.03 255)" }}>
-                הרגעים הטובים ביותר השבוע
-              </p>
-              <div className="flex flex-col gap-3">
-                {topMoments.map((m, idx) => (
-                  <div
-                    key={m.id}
-                    className="rounded-2xl border overflow-hidden"
-                    style={{ background: "white", borderColor: "oklch(0.93 0.02 85)" }}
-                  >
-                    <div className="h-0.5" style={{ background: `linear-gradient(90deg, ${MEDAL_COLORS[idx]}, transparent)` }} />
-                    <div className="p-4 flex items-center gap-3">
+          {/* Top moments — premium only */}
+          {isPremium ? (
+            <>
+              {topMoments.length > 0 && (
+                <div className="mb-6">
+                  <p className="text-base font-black text-right mb-3" style={{ color: "oklch(0.2 0.03 255)" }}>
+                    הרגעים הטובים ביותר השבוע
+                  </p>
+                  <div className="flex flex-col gap-3">
+                    {topMoments.map((m, idx) => (
                       <div
-                        className="w-7 h-7 rounded-full flex items-center justify-center text-white font-black text-sm flex-shrink-0"
-                        style={{ background: MEDAL_COLORS[idx] }}
+                        key={m.id}
+                        className="rounded-2xl border overflow-hidden"
+                        style={{ background: "white", borderColor: "oklch(0.93 0.02 85)" }}
                       >
-                        {idx + 1}
+                        <div className="h-0.5" style={{ background: `linear-gradient(90deg, ${MEDAL_COLORS[idx]}, transparent)` }} />
+                        <div className="p-4 flex items-center gap-3">
+                          <div
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-white font-black text-sm flex-shrink-0"
+                            style={{ background: MEDAL_COLORS[idx] }}
+                          >
+                            {idx + 1}
+                          </div>
+                          <div
+                            className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white flex-shrink-0"
+                            style={{ background: m.child_color ?? "oklch(0.65 0.14 140)", fontSize: "14px" }}
+                          >
+                            {m.child_name?.[0] ?? "?"}
+                          </div>
+                          <div className="flex-1 text-right min-w-0">
+                            <p className="font-black text-sm" style={{ color: "oklch(0.2 0.03 255)" }}>{m.title}</p>
+                            <p className="text-xs mt-0.5" style={{ color: "oklch(0.58 0.03 255)" }}>
+                              {m.duration_min ? `${m.duration_min} דקות` : ""}
+                              {m.child_name ? ` עם ${m.child_name}` : ""}
+                            </p>
+                          </div>
+                          <p className="text-xs font-semibold flex-shrink-0" style={{ color: "oklch(0.55 0.14 140)" }}>
+                            {formatScheduled(m.scheduled_at)}
+                          </p>
+                        </div>
                       </div>
-                      <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white flex-shrink-0"
-                        style={{ background: m.child_color ?? "oklch(0.65 0.14 140)", fontSize: "14px" }}
-                      >
-                        {m.child_name?.[0] ?? "?"}
+                    ))}
+                  </div>
+                </div>
+              )}
+              {topMoments.length === 0 && (
+                <div className="rounded-2xl p-6 text-center mb-6 border" style={{ background: "white", borderColor: "oklch(0.93 0.02 85)" }}>
+                  <Sparkles className="w-7 h-7 mx-auto mb-2" style={{ color: "oklch(0.65 0.14 140)" }} />
+                  <p className="text-sm font-black mb-1" style={{ color: "oklch(0.2 0.03 255)" }}>עדיין אין רגעים השבוע</p>
+                  <p className="text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>שמור הצעות מהדשבורד כדי שיופיעו כאן</p>
+                </div>
+              )}
+            </>
+          ) : (
+            /* Free-tier: show upgrade prompt where the full report would be */
+            <div className="mb-6 rounded-3xl overflow-hidden" style={{ border: "1.5px dashed oklch(0.72 0.18 42 / 0.5)" }}>
+              {/* Blurred preview — decorative */}
+              <div className="relative" style={{ background: "oklch(0.97 0.01 85)" }}>
+                <div className="p-4 blur-[3px] pointer-events-none select-none opacity-50" aria-hidden>
+                  <p className="text-sm font-black text-right mb-2" style={{ color: "oklch(0.2 0.03 255)" }}>הרגעים הטובים ביותר השבוע</p>
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="rounded-xl mb-2 overflow-hidden border" style={{ background: "white", borderColor: "oklch(0.93 0.02 85)" }}>
+                      <div className="h-0.5" style={{ background: `oklch(${0.72 - i * 0.05} 0.18 ${42 + i * 20})` }} />
+                      <div className="p-3 flex items-center gap-3">
+                        <div className="w-6 h-6 rounded-full flex-shrink-0" style={{ background: MEDAL_COLORS[i - 1] }} />
+                        <div className="flex-1">
+                          <div className="h-3 rounded mb-1" style={{ background: "oklch(0.88 0.02 85)", width: `${60 + i * 10}%` }} />
+                          <div className="h-2 rounded" style={{ background: "oklch(0.92 0.01 85)", width: "40%" }} />
+                        </div>
                       </div>
-                      <div className="flex-1 text-right min-w-0">
-                        <p className="font-black text-sm" style={{ color: "oklch(0.2 0.03 255)" }}>{m.title}</p>
-                        <p className="text-xs mt-0.5" style={{ color: "oklch(0.58 0.03 255)" }}>
-                          {m.duration_min ? `${m.duration_min} דקות` : ""}
-                          {m.child_name ? ` עם ${m.child_name}` : ""}
-                        </p>
-                      </div>
-                      <p className="text-xs font-semibold flex-shrink-0" style={{ color: "oklch(0.55 0.14 140)" }}>
-                        {formatScheduled(m.scheduled_at)}
-                      </p>
+                    </div>
+                  ))}
+                  <div className="rounded-xl mt-3 p-4" style={{ background: "white", border: "1px solid oklch(0.93 0.02 85)" }}>
+                    <div className="flex items-end gap-2 h-16">
+                      {[50, 70, 45, 85].map((h, i) => (
+                        <div key={i} className="flex-1 rounded-t-lg" style={{ height: `${h}%`, background: "oklch(0.88 0.05 140 / 0.5)" }} />
+                      ))}
                     </div>
                   </div>
-                ))}
+                </div>
+                {/* Overlay */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-5">
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center"
+                    style={{ background: "linear-gradient(135deg, oklch(0.65 0.14 140), oklch(0.58 0.16 148))" }}
+                  >
+                    <Lock className="w-5 h-5 text-white" />
+                  </div>
+                  <p className="text-base font-black text-center" style={{ color: "oklch(0.2 0.03 255)" }}>
+                    הדוח המלא זמין בפרימיום
+                  </p>
+                  <p className="text-xs text-center leading-relaxed" style={{ color: "oklch(0.55 0.03 255)" }}>
+                    רגעים מובילים השבוע, גרף מגמה של 4 שבועות, וסיכום חודשי להדפסה.
+                  </p>
+                  <button
+                    onClick={onUpgrade}
+                    className="mt-1 rounded-xl px-5 py-2.5 text-sm font-black text-white gradient-cta transition-opacity hover:opacity-90 active:scale-[0.98]"
+                    style={{ boxShadow: "0 4px 14px oklch(0.65 0.14 140 / 0.35)" }}
+                  >
+                    שדרג לפרימיום - ₪39/חודש
+                  </button>
+                  <p className="text-xs" style={{ color: "oklch(0.65 0.03 255)" }}>14 יום חינם, ביטול בכל זמן</p>
+                </div>
               </div>
             </div>
           )}
 
-          {/* Empty moments state */}
-          {topMoments.length === 0 && (
-            <div
-              className="rounded-2xl p-6 text-center mb-6 border"
-              style={{ background: "white", borderColor: "oklch(0.93 0.02 85)" }}
-            >
-              <Sparkles className="w-7 h-7 mx-auto mb-2" style={{ color: "oklch(0.65 0.14 140)" }} />
-              <p className="text-sm font-black mb-1" style={{ color: "oklch(0.2 0.03 255)" }}>עדיין אין רגעים השבוע</p>
-              <p className="text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>שמור הצעות מהדשבורד כדי שיופיעו כאן</p>
-            </div>
-          )}
-
-          {/* Trend chart */}
-          {scores.length > 0 && (
+          {/* Trend chart — premium only */}
+          {isPremium && scores.length > 0 && (
             <div className="rounded-2xl border p-5 mb-6" style={{ background: "white", borderColor: "oklch(0.93 0.02 85)" }}>
               <p className="text-sm font-black text-right mb-4" style={{ color: "oklch(0.2 0.03 255)" }}>
                 מגמה – שבועות אחרונים

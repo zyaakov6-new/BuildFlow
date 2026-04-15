@@ -396,6 +396,7 @@ export default function Dashboard() {
   const [weekActiveDays, setWeekActiveDays] = useState<number[]>([]);
   const [calendarConnected, setCalendarConnected] = useState<boolean | null>(null);
   const [calendarConnectLoading, setCalendarConnectLoading] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
 
   // ---- Load real data on mount ----
   useEffect(() => {
@@ -411,15 +412,19 @@ export default function Dashboard() {
         if (!user) return;
 
         // 2. Profile name + persist Google Calendar token if present in session
+        // @ts-ignore — subscription columns added via migration, not yet in generated types
         const { data: profile } = await supabase
           .from("profiles")
-          .select("full_name, google_calendar_token")
+          .select("full_name, google_calendar_token, subscription_status, subscription_plan")
           .eq("id", user.id)
-          .maybeSingle();
+          .maybeSingle() as unknown as { data: { full_name: string | null; google_calendar_token: string | null; subscription_status: string | null; subscription_plan: string | null } | null };
         const name = profile?.full_name ?? user.email?.split("@")[0] ?? "משתמש";
         setUserName(name);
         setUserInitial(name[0] ?? "?");
         setCalendarConnected(!!profile?.google_calendar_token);
+        const subStatus = profile?.subscription_status ?? "free";
+        const subPlan   = profile?.subscription_plan   ?? "free";
+        setIsPremium(subStatus === "active" && subPlan !== "free");
 
         if (session?.provider_token) {
           await supabase.from("profiles").upsert({
@@ -702,9 +707,9 @@ export default function Dashboard() {
       </div>
 
       {/* ---- Screen routing ---- */}
-      {activeTab === "suggestions" && <SuggestionsScreen />}
+      {activeTab === "suggestions" && <SuggestionsScreen isPremium={isPremium} onUpgrade={() => setSidebarOpen(true)} />}
       {activeTab === "calendar"    && <CalendarScreen onNavigateToSuggestions={() => setActiveTab("suggestions")} />}
-      {activeTab === "reports"     && <ReportsScreen />}
+      {activeTab === "reports"     && <ReportsScreen isPremium={isPremium} onUpgrade={() => setSidebarOpen(true)} />}
       {activeTab === "profile"     && <SettingsScreen />}
 
       {/* ---- Home screen ---- */}

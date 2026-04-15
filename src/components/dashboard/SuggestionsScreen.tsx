@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Blocks, BookOpen, Pencil, Car, TreePine, Music, Sparkles,
   Clock, X, Info, ChevronLeft, Utensils, Puzzle, Dumbbell,
-  FlaskConical, Palette, Heart,
+  FlaskConical, Palette, Heart, Crown, Lock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
@@ -103,7 +103,13 @@ function prepLabel(mins: number | null): "אפס הכנה" | "הכנה קלה" |
 }
 
 // ---- Main Component ----
-export default function SuggestionsScreen() {
+export default function SuggestionsScreen({
+  isPremium = false,
+  onUpgrade,
+}: {
+  isPremium?: boolean;
+  onUpgrade?: () => void;
+}) {
   const [allItems, setAllItems] = useState<SuggestionItem[]>([]);
   const [children, setChildren] = useState<ChildInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -602,76 +608,144 @@ export default function SuggestionsScreen() {
       )}
 
       {/* Grid of remaining suggestions */}
-      {rest.length > 0 && (
-        <>
-          <p className="text-sm font-black text-right mb-3" style={{ color: "oklch(0.2 0.03 255)" }}>
-            עוד רגעים מומלצים
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-            {rest.map((s) => (
-              <div
-                key={s.id}
-                className="rounded-2xl overflow-hidden border"
-                style={{ background: "white", borderColor: "oklch(0.93 0.02 85)", boxShadow: "0 2px 8px oklch(0 0 0 / 0.04)" }}
-              >
-                <div className="h-1 w-full" style={{ background: `linear-gradient(90deg, ${s.accentColor}, transparent)` }} />
-                <div className="p-4">
-                  <div className="flex items-start gap-3 mb-3">
-                    <button
-                      onClick={() => handleDismiss(s.id)}
-                      className="p-0.5 rounded-lg flex-shrink-0 mt-0.5 transition-colors hover:bg-[oklch(0.95_0.01_85)]"
-                      style={{ color: "oklch(0.75 0.02 255)" }}
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                    <div className="flex-1 text-right">
-                      <p className="font-black text-sm leading-snug mb-0.5" style={{ color: "oklch(0.2 0.03 255)" }}>
-                        {s.title}
-                      </p>
-                      <div className="flex items-center justify-end gap-1.5 text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>
-                        <span
-                          className="w-4 h-4 rounded-full text-white font-black flex items-center justify-center"
-                          style={{ background: s.childColor, fontSize: "9px" }}
-                        >
-                          {s.childInitial}
-                        </span>
-                        <span>{s.childName}</span>
+      {rest.length > 0 && (() => {
+        // Free users see at most 2 grid cards (+ 1 featured = 3 total)
+        const visibleRest = isPremium ? rest : rest.slice(0, 2);
+        const hiddenCount = isPremium ? 0 : rest.length - 2;
+        return (
+          <>
+            <p className="text-sm font-black text-right mb-3" style={{ color: "oklch(0.2 0.03 255)" }}>
+              עוד רגעים מומלצים
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+              {visibleRest.map((s) => (
+                <div
+                  key={s.id}
+                  className="rounded-2xl overflow-hidden border"
+                  style={{ background: "white", borderColor: "oklch(0.93 0.02 85)", boxShadow: "0 2px 8px oklch(0 0 0 / 0.04)" }}
+                >
+                  <div className="h-1 w-full" style={{ background: `linear-gradient(90deg, ${s.accentColor}, transparent)` }} />
+                  <div className="p-4">
+                    <div className="flex items-start gap-3 mb-3">
+                      <button
+                        onClick={() => handleDismiss(s.id)}
+                        className="p-0.5 rounded-lg flex-shrink-0 mt-0.5 transition-colors hover:bg-[oklch(0.95_0.01_85)]"
+                        style={{ color: "oklch(0.75 0.02 255)" }}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                      <div className="flex-1 text-right">
+                        <p className="font-black text-sm leading-snug mb-0.5" style={{ color: "oklch(0.2 0.03 255)" }}>
+                          {s.title}
+                        </p>
+                        <div className="flex items-center justify-end gap-1.5 text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>
+                          <span
+                            className="w-4 h-4 rounded-full text-white font-black flex items-center justify-center"
+                            style={{ background: s.childColor, fontSize: "9px" }}
+                          >
+                            {s.childInitial}
+                          </span>
+                          <span>{s.childName}</span>
+                        </div>
+                      </div>
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ background: s.bgColor }}
+                      >
+                        <s.IconComp className="w-5 h-5" style={{ color: s.accentColor }} />
                       </div>
                     </div>
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: s.bgColor }}
+
+                    <div className="flex items-center justify-between mb-3 text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>
+                      <span
+                        className="rounded-full px-2 py-0.5 font-semibold"
+                        style={{ background: `${s.accentColor}12`, color: s.accentColor }}
+                      >
+                        {s.prepLevel}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {s.duration} · {s.timeSlot}
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={() => handleSave(s)}
+                      className="w-full rounded-xl py-2 text-sm font-black text-white transition-opacity hover:opacity-90"
+                      style={{ background: "linear-gradient(135deg, oklch(0.65 0.14 140), oklch(0.58 0.16 148))" }}
                     >
-                      <s.IconComp className="w-5 h-5" style={{ color: s.accentColor }} />
+                      שמור את הרגע הזה
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Premium gate — shown for free users when there are more suggestions */}
+            {!isPremium && hiddenCount > 0 && (
+              <div
+                className="rounded-2xl p-5 mb-6 text-right relative overflow-hidden"
+                style={{
+                  background: "linear-gradient(135deg, oklch(0.28 0.05 255), oklch(0.32 0.07 265))",
+                  boxShadow: "0 4px 24px oklch(0.28 0.05 255 / 0.25)",
+                }}
+              >
+                {/* Decorative glow */}
+                <div className="absolute -top-6 -left-6 w-28 h-28 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: "oklch(0.65 0.14 140)" }} />
+                <div className="relative z-10">
+                  <div className="flex items-center justify-end gap-2 mb-2">
+                    <span className="text-sm font-black text-white">עוד {hiddenCount} הצעות מחכות לך</span>
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "oklch(0.72 0.18 42)" }}>
+                      <Crown className="w-4 h-4 text-white" />
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-between mb-3 text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>
-                    <span
-                      className="rounded-full px-2 py-0.5 font-semibold"
-                      style={{ background: `${s.accentColor}12`, color: s.accentColor }}
-                    >
-                      {s.prepLevel}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {s.duration} · {s.timeSlot}
-                    </span>
+                  <p className="text-xs mb-4 leading-relaxed" style={{ color: "oklch(0.72 0.05 255)" }}>
+                    בפרימיום תקבל הצעות יומיות ללא הגבלה, התאמה לפי מזג אוויר ומיקום, ועוד.
+                  </p>
+                  <div className="flex flex-col gap-2 mb-4">
+                    {["הצעות יומיות ללא הגבלה", "התאמה מתקדמת - מצב רוח, מזג אוויר", "מעקב רצף + חגיגת אבני דרך"].map((f) => (
+                      <div key={f} className="flex items-center gap-2 flex-row-reverse">
+                        <Sparkles className="w-3 h-3 flex-shrink-0" style={{ color: "oklch(0.72 0.18 42)" }} />
+                        <span className="text-xs" style={{ color: "oklch(0.82 0.03 255)" }}>{f}</span>
+                      </div>
+                    ))}
                   </div>
-
                   <button
-                    onClick={() => handleSave(s)}
-                    className="w-full rounded-xl py-2 text-sm font-black text-white transition-opacity hover:opacity-90"
-                    style={{ background: "linear-gradient(135deg, oklch(0.65 0.14 140), oklch(0.58 0.16 148))" }}
+                    onClick={onUpgrade}
+                    className="w-full rounded-xl py-2.5 text-sm font-black text-white gradient-cta transition-opacity hover:opacity-90 active:scale-[0.98]"
+                    style={{ boxShadow: "0 4px 14px oklch(0.65 0.14 140 / 0.4)" }}
                   >
-                    שמור את הרגע הזה
+                    שדרג לפרימיום - ₪39/חודש
                   </button>
                 </div>
               </div>
-            ))}
-          </div>
-        </>
-      )}
+            )}
+
+            {/* Free-tier counter badge — shown when user has no more hidden items */}
+            {!isPremium && hiddenCount <= 0 && (
+              <div
+                className="rounded-2xl p-4 mb-6 text-right border"
+                style={{ background: "oklch(0.97 0.02 85)", borderColor: "oklch(0.90 0.03 85)" }}
+              >
+                <div className="flex items-center justify-end gap-2 mb-1">
+                  <p className="text-sm font-black" style={{ color: "oklch(0.35 0.03 255)" }}>3/3 הצעות שבועיות</p>
+                  <Lock className="w-4 h-4" style={{ color: "oklch(0.55 0.03 255)" }} />
+                </div>
+                <p className="text-xs mb-3" style={{ color: "oklch(0.58 0.03 255)" }}>
+                  הגעת למכסה השבועית. פרימיום נותן לך הצעות יומיות ללא הגבלה.
+                </p>
+                <button
+                  onClick={onUpgrade}
+                  className="rounded-xl px-4 py-2 text-xs font-black text-white gradient-cta transition-opacity hover:opacity-90 active:scale-[0.98]"
+                  style={{ boxShadow: "0 3px 10px oklch(0.65 0.14 140 / 0.3)" }}
+                >
+                  שדרג לפרימיום
+                </button>
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       {/* Saved confirmation strip */}
       {saved.size > 0 && (
