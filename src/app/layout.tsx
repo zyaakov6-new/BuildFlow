@@ -11,6 +11,11 @@ const heebo = Heebo({
 });
 
 export const metadata: Metadata = {
+  icons: {
+    icon: [{ url: "/logo.jpg", type: "image/jpeg" }],
+    apple: [{ url: "/logo.jpg", type: "image/jpeg" }],
+    shortcut: "/logo.jpg",
+  },
   title: "BondFlow - מצא רגעים אמיתיים עם הילדים שלך",
   description:
     "אפליקציית לוח הזמנים המשפחתי עם AI לעזרת הורים עסוקים. BondFlow מוצאת פרצות זמן אמיתיות ביומן שלך ומציעה פעילויות אפס-הכנה שהילדים שלך יאהבו.",
