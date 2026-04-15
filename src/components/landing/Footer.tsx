@@ -1,5 +1,3 @@
-import { Sparkles } from "lucide-react";
-
 const navLinks = [
   { label: "איך זה עובד", href: "#how-it-works" },
   { label: "יתרונות", href: "#benefits" },
@@ -20,9 +18,18 @@ export default function Footer() {
         <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-8">
           {/* לוגו */}
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl gradient-cta flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-white" />
-            </div>
+            <img
+              src="/logo.jpg"
+              alt="BondFlow"
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 9,
+                objectFit: "cover",
+                objectPosition: "50% 28%",
+                flexShrink: 0,
+              }}
+            />
             <span className="font-black text-xl text-white">BondFlow</span>
           </div>
 
