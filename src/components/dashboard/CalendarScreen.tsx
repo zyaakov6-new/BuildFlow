@@ -570,7 +570,7 @@ export default function CalendarScreen({
                     <p className="text-xs font-black leading-none" style={{ color: "oklch(0.58 0.14 140)" }}>
                       {minToStr(slot.startMin)}
                     </p>
-                    <p className="text-xs mt-0.5" style={{ color: "oklch(0.7 0.03 255)" }}>{slot.durMin} דק'</p>
+                    <p className="text-xs mt-0.5" style={{ color: "oklch(0.7 0.03 255)" }}>{minToStr(slot.endMin)}</p>
                   </div>
                   {/* Suggestion tile */}
                   <div className="flex-1 rounded-2xl p-3.5"

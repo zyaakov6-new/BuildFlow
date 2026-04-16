@@ -14,6 +14,7 @@ import CalendarScreen from "./CalendarScreen";
 import ReportsScreen from "./ReportsScreen";
 import SettingsScreen from "./SettingsScreen";
 import InlineSpinner from "@/components/ui/inline-spinner";
+import PWAInstallBanner from "@/components/PWAInstallBanner";
 
 // ---- Types ----
 type Tab = "home" | "suggestions" | "calendar" | "reports" | "profile";
@@ -81,11 +82,14 @@ function ScoreRing({ score, delta, activeDays }: { score: number; delta: number;
         {/* Text */}
         <div className="flex-1 text-right">
           <p className="text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: "oklch(0.65 0.14 140)" }}>
-            כמה אתה נוכח השבוע
+            ציון חיבור משפחתי
           </p>
-          <p className="text-lg font-black leading-snug mb-2" style={{ color: "oklch(0.18 0.03 255)" }}>
+          <p className="text-lg font-black leading-snug mb-1" style={{ color: "oklch(0.18 0.03 255)" }}>
             אתה שם.<br />
             <span className="text-gradient">ממשיך כך.</span>
+          </p>
+          <p className="text-xs mb-2" style={{ color: "oklch(0.62 0.03 255)" }}>
+            20 נק׳ לכל פעילות · עד 100 בשבוע
           </p>
           <div
             className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1"
@@ -649,6 +653,7 @@ export default function Dashboard() {
     <div className="min-h-screen pb-20 md:pb-0" style={{ background: "oklch(0.97 0.01 85)" }}>
       {/* Profile sidebar */}
       <ProfileSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <PWAInstallBanner />
 
       {/* ---- Top bar ---- */}
       <div

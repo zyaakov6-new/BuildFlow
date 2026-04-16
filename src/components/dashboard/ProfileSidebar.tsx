@@ -30,7 +30,7 @@ interface UserData {
   };
 }
 
-const FREE_CHILD_LIMIT    = 1;
+const FREE_CHILD_LIMIT    = 2;
 const PREMIUM_CHILD_LIMIT = 4;
 
 const PLAN_FEATURES = {

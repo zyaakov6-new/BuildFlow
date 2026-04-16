@@ -17,8 +17,8 @@ export default function Home() {
         <Hero />
         <SocialProof />
         <Problem />
-        <Benefits />
         <HowItWorks />
+        <Benefits />
         <FAQ />
         <FinalCTA />
         <Pricing />

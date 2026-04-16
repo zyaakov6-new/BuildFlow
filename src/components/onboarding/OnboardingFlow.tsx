@@ -349,7 +349,7 @@ function FamilySetup({
             ספרו לנו על הילדים שלכם
           </h2>
           <p className="text-sm" style={{ color: "oklch(0.55 0.03 255)" }}>
-            ככל שנדע יותר - ההצעות יהיו אישיות יותר.
+            כך נדאג שההצעות יהיו רלוונטיות לגיל ולתחביבים שלהם — לא הצעות גנריות.
           </p>
         </div>
 
@@ -519,25 +519,9 @@ function CalendarConnect({
           <StepBar current={3} />
         </div>
 
-        {/* Title */}
-        <div className="text-right mb-8">
-          <div
-            className="w-11 h-11 rounded-2xl flex items-center justify-center mb-3"
-            style={{ background: "oklch(0.90 0.06 255 / 0.18)" }}
-          >
-            <CalendarDays className="w-5.5 h-5.5" style={{ color: "oklch(0.52 0.18 255)" }} />
-          </div>
-          <h2 className="text-2xl font-black mb-2" style={{ color: "oklch(0.18 0.03 255)" }}>
-            רוצה לחבר את היומן שלך?
-          </h2>
-          <p className="text-sm leading-relaxed" style={{ color: "oklch(0.52 0.03 255)" }}>
-            BondFlow יסרוק את הלו&quot;ז וימצא חלונות קטנים שאפשר למלא ברגעים משפחתיים. לגמרי אופציונלי.
-          </p>
-        </div>
-
-        {/* Benefits list */}
+        {/* Trust box — shown FIRST so users feel safe before deciding */}
         <div
-          className="rounded-2xl p-4 mb-6 flex items-start gap-3 flex-row-reverse"
+          className="rounded-2xl p-4 mb-5 flex items-start gap-3 flex-row-reverse"
           style={{
             background: "oklch(0.94 0.04 140 / 0.35)",
             border: "1px solid oklch(0.80 0.07 140 / 0.35)",
@@ -546,7 +530,7 @@ function CalendarConnect({
           <Lock className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "oklch(0.50 0.12 140)" }} />
           <div className="flex flex-col gap-1.5">
             {[
-              "רואה מתי אתם פנויים — לא מה הפגישה",
+              "רואה רק מתי אתם פנויים — לא מה הפגישה",
               "הנתונים מאובטחים בהצפנה מלאה",
               "אפשר לנתק בכל שלב מההגדרות",
             ].map((item, i) => (
@@ -563,10 +547,26 @@ function CalendarConnect({
           </div>
         </div>
 
+        {/* Title */}
+        <div className="text-right mb-6">
+          <div
+            className="w-11 h-11 rounded-2xl flex items-center justify-center mb-3"
+            style={{ background: "oklch(0.90 0.06 255 / 0.18)" }}
+          >
+            <CalendarDays className="w-5.5 h-5.5" style={{ color: "oklch(0.52 0.18 255)" }} />
+          </div>
+          <h2 className="text-2xl font-black mb-2" style={{ color: "oklch(0.18 0.03 255)" }}>
+            רוצה לחבר את היומן שלך?
+          </h2>
+          <p className="text-sm leading-relaxed" style={{ color: "oklch(0.52 0.03 255)" }}>
+            BondFlow יסרוק את הלו&quot;ז וימצא חלונות קטנים שאפשר למלא ברגעים משפחתיים. לגמרי אופציונלי.
+          </p>
+        </div>
+
         {/* Connect button — explicit opt-in only */}
         <button
           onClick={onConnectCalendar}
-          className="w-full rounded-2xl py-4 text-base font-black flex items-center justify-center gap-3 transition-all active:scale-[0.97] mb-3"
+          className="w-full rounded-2xl py-4 text-base font-black flex items-center justify-center gap-3 transition-all active:scale-[0.97] mb-2"
           style={{
             background: "white",
             border: "2px solid oklch(0.88 0.03 85)",
@@ -577,6 +577,18 @@ function CalendarConnect({
           <GoogleLogo />
           חבר Google Calendar
         </button>
+
+        {/* Google unverified-app warning — shown proactively */}
+        <div
+          className="rounded-xl px-3 py-2 mb-4 flex items-start gap-2 flex-row-reverse"
+          style={{ background: "oklch(0.96 0.03 60 / 0.6)", border: "1px solid oklch(0.88 0.08 60 / 0.5)" }}
+        >
+          <span className="text-base leading-none flex-shrink-0 mt-0.5">⚠️</span>
+          <p className="text-xs text-right leading-relaxed" style={{ color: "oklch(0.45 0.08 50)" }}>
+            Google עשוי להציג מסך אזהרה — זה זמני בזמן שהאפליקציה עוברת אישור.
+            לחץ <strong>&quot;Advanced&quot;</strong> ואז <strong>&quot;Go to BondFlow&quot;</strong> כדי להמשיך.
+          </p>
+        </div>
 
         {/* Skip — visually equal weight to make it truly optional */}
         <button
@@ -864,13 +876,10 @@ function FirstWinScreen({
               >
                 {activity.prepLevel}
               </span>
-              <div className="flex items-center gap-3 text-xs" style={{ color: "oklch(0.58 0.03 255)" }}>
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {activity.duration}
-                </span>
-                <span>{activity.timeSlot}</span>
-              </div>
+              <span className="flex items-center gap-1 text-xs" style={{ color: "oklch(0.58 0.03 255)" }}>
+                <Clock className="w-3 h-3" />
+                {activity.duration}
+              </span>
             </div>
           </div>
 
@@ -892,6 +901,9 @@ function FirstWinScreen({
         {!saved ? (
           <div className="flex flex-col gap-3 mb-5">
             <PrimaryButton label="שמור ליומן עכשיו" onClick={handleSave} />
+            <p className="text-xs text-center" style={{ color: "oklch(0.65 0.03 255)" }}>
+              נשמר בדשבורד שלך ונוסף ליומן — תזכורת תגיע לפני הזמן
+            </p>
             <button
               onClick={handleNext}
               className="w-full rounded-2xl py-3.5 text-sm font-bold border-2 flex items-center justify-center gap-2 transition-all active:scale-[0.97]"
