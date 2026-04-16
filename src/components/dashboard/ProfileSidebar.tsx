@@ -176,7 +176,7 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
       if (!user) return;
 
       const color = CHILD_COLORS[children.length % CHILD_COLORS.length];
-      const { data: newChild } = await supabase.from("children").insert({
+      const { data: newChild, error: insertError } = await supabase.from("children").insert({
         user_id: user.id,
         name: childForm.name.trim(),
         age_group: childForm.age_group,
@@ -184,6 +184,11 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
         avatar_color: color,
       }).select().single();
 
+      if (insertError) {
+        toast.error("שגיאה בהוספת ילד. נסה שוב.");
+        console.error("Insert child error:", insertError);
+        return;
+      }
       if (newChild) {
         setChildren((prev) => [...prev, newChild as ChildRecord]);
         setUserData((prev) => ({ ...prev, stats: { ...prev.stats, childrenCount: prev.stats.childrenCount + 1 } }));
@@ -192,6 +197,7 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
       setAddingChild(false);
     } catch (e) {
       console.error("Failed to add child:", e);
+      toast.error("שגיאה בהוספת ילד. נסה שוב.");
     } finally {
       setSavingChild(false);
     }
@@ -294,27 +300,27 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
 
   const connectGoogleCalendar = async () => {
     const supabase = createClient();
-    // linkIdentity preserves the current user session — Google is added as an
-    // additional identity so an email-signup user stays on their own account.
-    const { error } = await supabase.auth.linkIdentity({
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+
+    // Persist the original session so /auth/restore-session can bring the user back
+    // after Google OAuth may have switched the active Supabase session.
+    localStorage.setItem("__bf_cal_restore", JSON.stringify({
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+    }));
+    // Cookie lets the server-side callback identify the original user (SameSite=Lax
+    // cookies are sent on top-level cross-site GET redirects).
+    document.cookie = `__bf_cal_uid=${session.user.id}; path=/; max-age=300; SameSite=Lax`;
+
+    await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         scopes: "https://www.googleapis.com/auth/calendar.events",
         queryParams: { access_type: "offline", prompt: "consent" },
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/calendar-callback`,
       },
     });
-    if (error) {
-      // Identity already linked — re-authenticate with Google to refresh the token
-      await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          scopes: "https://www.googleapis.com/auth/calendar.events",
-          queryParams: { access_type: "offline", prompt: "consent" },
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-    }
   };
 
   const [disconnecting, setDisconnecting] = useState(false);

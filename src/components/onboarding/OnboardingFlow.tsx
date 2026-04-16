@@ -459,8 +459,8 @@ function FamilySetup({
           })}
         </div>
 
-        {/* Add child button */}
-        {data.children.length < 3 && (
+        {/* Add child button / limit message */}
+        {data.children.length < 2 ? (
           <button
             onClick={addChild}
             className="flex items-center justify-center gap-2 w-full rounded-2xl py-3.5 text-sm font-bold border-2 border-dashed transition-all mb-5 hover:opacity-75"
@@ -472,6 +472,16 @@ function FamilySetup({
             <Plus className="w-4 h-4" />
             הוסף ילד נוסף
           </button>
+        ) : (
+          <div
+            className="flex items-center justify-center gap-2 w-full rounded-2xl py-3 text-xs font-semibold mb-5 text-center"
+            style={{
+              background: "oklch(0.94 0.04 42 / 0.18)",
+              color: "oklch(0.58 0.14 42)",
+            }}
+          >
+            בתוכנית חינמי ניתן להוסיף עד 2 ילדים — שדרג לפרימיום לעד 4 ילדים
+          </div>
         )}
 
         {/* Next + skip */}
@@ -998,27 +1008,25 @@ export default function OnboardingFlow() {
         );
       }
 
-      // linkIdentity keeps the user on their current account (email or Google)
-      // and only adds Google Calendar scope. Falls back to signInWithOAuth if
-      // Google is already linked (e.g. re-connecting).
-      const { error: linkError } = await supabase.auth.linkIdentity({
+      // Store current session so /auth/restore-session can put the user back
+      // if the Google OAuth flow switches to a different Supabase account.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        localStorage.setItem("__bf_cal_restore", JSON.stringify({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+        }));
+        document.cookie = `__bf_cal_uid=${session.user.id}; path=/; max-age=300; SameSite=Lax`;
+      }
+
+      await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           scopes: "https://www.googleapis.com/auth/calendar.events",
           queryParams: { access_type: "offline", prompt: "consent" },
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/calendar-callback`,
         },
       });
-      if (linkError) {
-        await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: {
-            scopes: "https://www.googleapis.com/auth/calendar.events",
-            queryParams: { access_type: "offline", prompt: "consent" },
-            redirectTo: `${window.location.origin}/auth/callback`,
-          },
-        });
-      }
     } catch (e) {
       console.error("handleConnectCalendar error:", e);
       setSaving(false);
