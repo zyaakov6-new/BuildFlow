@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import Link from "next/link";
 import {
   Sparkles, Plus, Trash2, ChevronLeft,
   Check, Clock, CalendarDays, Users, Heart, Lock,
@@ -77,6 +76,13 @@ function StepBar({ current }: { current: StepNum }) {
 }
 
 function NavBar({ onBack, showBack }: { onBack?: () => void; showBack?: boolean }) {
+  const handleSignInClick = async () => {
+    // Sign out first so the middleware doesn't redirect back to onboarding
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = "/auth";
+  };
+
   return (
     <div className="flex items-center justify-between px-6 pt-8 pb-4">
       {showBack ? (
@@ -89,13 +95,13 @@ function NavBar({ onBack, showBack }: { onBack?: () => void; showBack?: boolean 
           חזור
         </button>
       ) : (
-        <Link
-          href="/auth"
+        <button
+          onClick={handleSignInClick}
           className="text-sm font-bold transition-opacity hover:opacity-70"
           style={{ color: "oklch(0.52 0.14 140)" }}
         >
           כניסה
-        </Link>
+        </button>
       )}
       <Logo />
     </div>
@@ -268,13 +274,17 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
           <PrimaryButton label="בואו נתחיל" onClick={onStart} />
           <p className="text-center text-sm" style={{ color: "oklch(0.62 0.03 255)" }}>
             יש לך כבר חשבון?{" "}
-            <Link
-              href="/auth"
-              className="font-bold"
+            <button
+              onClick={async () => {
+                const supabase = createClient();
+                await supabase.auth.signOut();
+                window.location.href = "/auth";
+              }}
+              className="font-bold transition-opacity hover:opacity-70"
               style={{ color: "oklch(0.50 0.14 140)" }}
             >
               כניסה לחשבון
-            </Link>
+            </button>
           </p>
         </div>
       </div>
