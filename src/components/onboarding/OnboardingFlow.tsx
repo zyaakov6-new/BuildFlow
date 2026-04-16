@@ -298,7 +298,7 @@ function FamilySetup({
     data.children.length > 0 && data.children.some((c) => c.name.trim().length > 0);
 
   const addChild = () => {
-    if (data.children.length >= 3) return;
+    if (data.children.length >= 2) return;
     setData({
       ...data,
       children: [
@@ -998,7 +998,10 @@ export default function OnboardingFlow() {
         );
       }
 
-      await supabase.auth.signInWithOAuth({
+      // linkIdentity keeps the user on their current account (email or Google)
+      // and only adds Google Calendar scope. Falls back to signInWithOAuth if
+      // Google is already linked (e.g. re-connecting).
+      const { error: linkError } = await supabase.auth.linkIdentity({
         provider: "google",
         options: {
           scopes: "https://www.googleapis.com/auth/calendar.events",
@@ -1006,6 +1009,16 @@ export default function OnboardingFlow() {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
+      if (linkError) {
+        await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            scopes: "https://www.googleapis.com/auth/calendar.events",
+            queryParams: { access_type: "offline", prompt: "consent" },
+            redirectTo: `${window.location.origin}/auth/callback`,
+          },
+        });
+      }
     } catch (e) {
       console.error("handleConnectCalendar error:", e);
       setSaving(false);

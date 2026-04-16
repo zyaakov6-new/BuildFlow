@@ -276,18 +276,6 @@ export default function AuthForm({ callbackError }: { callbackError?: string }) 
                   />
                 </div>
 
-                {mode === "signin" && (
-                  <div className="text-right">
-                    <button
-                      type="button"
-                      className="text-xs font-semibold"
-                      style={{ color: "oklch(0.65 0.14 140)" }}
-                      onClick={() => setMode("magic")}
-                    >
-                      שכחת סיסמה? כנס עם קישור מהיר
-                    </button>
-                  </div>
-                )}
 
                 {error && (
                   <div
@@ -320,20 +308,6 @@ export default function AuthForm({ callbackError }: { callbackError?: string }) 
                 </Button>
               </form>
 
-              {/* Magic link option */}
-              {mode !== "magic" && (
-                <div className="mt-5 text-center">
-                  <button
-                    type="button"
-                    onClick={() => setMode("magic")}
-                    className="text-xs font-medium transition-colors"
-                    style={{ color: "oklch(0.6 0.03 255)" }}
-                  >
-                    מעדיף קישור כניסה במייל ללא סיסמה?{" "}
-                    <span style={{ color: "oklch(0.65 0.14 140)" }} className="font-bold">לחץ כאן</span>
-                  </button>
-                </div>
-              )}
 
               {/* Switch mode */}
               <p className="text-center text-xs mt-4" style={{ color: "oklch(0.6 0.03 255)" }}>

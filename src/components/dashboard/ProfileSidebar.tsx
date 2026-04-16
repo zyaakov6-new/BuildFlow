@@ -161,7 +161,7 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
     const childLimit = userData.plan === "premium" ? PREMIUM_CHILD_LIMIT : FREE_CHILD_LIMIT;
     if (children.length >= childLimit) {
       if (userData.plan === "free") {
-        toast.error("בחינמי ניתן פרופיל ילד אחד בלבד. שדרג לפרימיום להוסיף עד 4 ילדים.");
+        toast.error("בחינמי ניתן עד 2 פרופילי ילדים. שדרג לפרימיום להוסיף עד 4 ילדים.");
       } else {
         toast.error("הגעת למקסימום של 4 ילדים בפרימיום.");
       }
@@ -294,7 +294,9 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
 
   const connectGoogleCalendar = async () => {
     const supabase = createClient();
-    await supabase.auth.signInWithOAuth({
+    // linkIdentity preserves the current user session — Google is added as an
+    // additional identity so an email-signup user stays on their own account.
+    const { error } = await supabase.auth.linkIdentity({
       provider: "google",
       options: {
         scopes: "https://www.googleapis.com/auth/calendar.events",
@@ -302,6 +304,17 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
         redirectTo: `${window.location.origin}/auth/callback`,
       },
     });
+    if (error) {
+      // Identity already linked — re-authenticate with Google to refresh the token
+      await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          scopes: "https://www.googleapis.com/auth/calendar.events",
+          queryParams: { access_type: "offline", prompt: "consent" },
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+    }
   };
 
   const [disconnecting, setDisconnecting] = useState(false);
@@ -329,7 +342,8 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
     const supabase = createClient();
     await supabase.auth.signOut();
     onClose();
-    router.push("/auth");
+    // Full reload so all cached state (session, profile, etc.) is cleared
+    window.location.href = "/auth";
   };
 
   const user = userData;
