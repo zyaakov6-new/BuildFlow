@@ -997,6 +997,12 @@ export default function OnboardingFlow() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setSaving(false); return; }
 
+      // Ensure profile row exists (may be missing if deleted externally)
+      await supabase.from("profiles").upsert(
+        { id: user.id, full_name: user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? null },
+        { onConflict: "id", ignoreDuplicates: true }
+      );
+
       await supabase.from("onboarding").upsert({
         user_id: user.id,
         completed: true,
@@ -1072,13 +1078,20 @@ export default function OnboardingFlow() {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (user) {
+        // Ensure profile row exists (may be missing if deleted externally)
+        await supabase.from("profiles").upsert(
+          { id: user.id, full_name: user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? null },
+          { onConflict: "id", ignoreDuplicates: true }
+        );
+
         // Upsert onboarding record
-        await supabase.from("onboarding").upsert({
+        const { error: onbError } = await supabase.from("onboarding").upsert({
           user_id: user.id,
           completed: true,
           calendar_connected: data.calendarConnected,
           completed_at: new Date().toISOString(),
-        });
+        }, { onConflict: "user_id" });
+        if (onbError) console.error("Onboarding upsert error:", onbError);
 
         // Insert children (skip empty names)
         const validChildren = data.children.filter((c) => c.name.trim().length > 0);
@@ -1088,7 +1101,7 @@ export default function OnboardingFlow() {
             "oklch(0.58 0.18 280)",
             "oklch(0.55 0.14 140)",
           ];
-          await supabase.from("children").insert(
+          const { error: childError } = await supabase.from("children").insert(
             validChildren.map((c, idx) => ({
               user_id: user.id,
               name: c.name.trim(),
@@ -1097,6 +1110,7 @@ export default function OnboardingFlow() {
               avatar_color: CHILD_COLOR_ACCENTS[idx % CHILD_COLOR_ACCENTS.length],
             }))
           );
+          if (childError) console.error("Children insert error:", childError);
         }
       }
     } catch (e) {

@@ -35,8 +35,16 @@ export async function GET(request: Request) {
         return NextResponse.redirect(new URL('/auth/reset', origin))
       }
 
-      // Store Google Calendar token if present (from Google OAuth with calendar scope)
+      // Ensure profile row exists (may be missing if previously deleted)
       const session = sessionData?.session
+      if (session?.user) {
+        await supabase.from('profiles').upsert({
+          id: session.user.id,
+          full_name: session.user.user_metadata?.full_name ?? null,
+        }, { onConflict: 'id', ignoreDuplicates: true })
+      }
+
+      // Store Google Calendar token if present (from Google OAuth with calendar scope)
       if (session?.provider_token && session.user) {
         await supabase.from('profiles').upsert({
           id: session.user.id,

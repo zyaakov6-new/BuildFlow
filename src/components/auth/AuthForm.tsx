@@ -68,9 +68,15 @@ export default function AuthForm({ callbackError }: { callbackError?: string }) 
       });
       if (error) throw error;
 
-      // Check if onboarding is completed
+      // Ensure profile exists (may be missing if deleted externally)
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        await supabase.from("profiles").upsert(
+          { id: user.id, full_name: user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? null },
+          { onConflict: "id", ignoreDuplicates: true }
+        );
+
+        // Check if onboarding is completed
         const { data: onb } = await supabase
           .from("onboarding")
           .select("completed")
