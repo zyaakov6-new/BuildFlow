@@ -14,14 +14,19 @@ const heebo = Heebo({
 
 export const metadata: Metadata = {
   icons: {
-    icon: [{ url: "/logo.jpg", type: "image/jpeg" }],
-    apple: [{ url: "/logo.jpg", type: "image/jpeg" }],
-    shortcut: "/logo.jpg",
+    icon: [{ url: "/icon-192.png", type: "image/png", sizes: "192x192" }],
+    apple: [{ url: "/icon-512.png", type: "image/png", sizes: "512x512" }],
+    shortcut: "/icon-192.png",
   },
   title: "BondFlow - מצא רגעים אמיתיים עם הילדים שלך",
   description:
     "אפליקציית לוח הזמנים המשפחתי עם AI לעזרת הורים עסוקים. BondFlow מוצאת פרצות זמן אמיתיות ביומן שלך ומציעה פעילויות אפס-הכנה שהילדים שלך יאהבו.",
-  keywords: ["זמן משפחתי", "אפליקציה להורים", "ישראל", "זמן איכות", "הורות"],
+  keywords: [
+    "זמן משפחתי", "אפליקציה להורים", "ישראל", "זמן איכות", "הורות",
+    "פעילויות לילדים", "פעילויות עם ילדים", "אפליקציה לזמן משפחתי",
+    "רעיונות לפעילויות", "זמן איכות עם ילדים", "תזמון משפחתי",
+    "bonding", "family time", "activities for kids",
+  ],
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -33,15 +38,14 @@ export const metadata: Metadata = {
     description:
       "הפוך 20 דקות כאוטיות לזיכרונות שנשארים. BondFlow היא מתזמנת המשפחה עם AI שנבנתה להורים ישראלים עסוקים.",
     type: "website",
+    images: [{ url: "/api/og", width: 1200, height: 630, alt: "BondFlow — רגעים עם הילדים" }],
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#4ade80",
+  themeColor: "#22c55e",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export default function RootLayout({

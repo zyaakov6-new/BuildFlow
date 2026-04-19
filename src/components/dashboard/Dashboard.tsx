@@ -15,6 +15,7 @@ import ReportsScreen from "./ReportsScreen";
 import SettingsScreen from "./SettingsScreen";
 import InlineSpinner from "@/components/ui/inline-spinner";
 import PWAInstallBanner from "@/components/PWAInstallBanner";
+import { toast } from "sonner";
 
 // ---- Types ----
 type Tab = "home" | "suggestions" | "calendar" | "reports" | "profile";
@@ -128,10 +129,11 @@ function ScoreRing({ score, delta, activeDays }: { score: number; delta: number;
 
 // ---- Upcoming card (horizontal, compact) ----
 function UpcomingCard({
-  title, child, childInitial, childColor, time, Icon, accentColor, bgColor,
+  id, title, child, childInitial, childColor, time, Icon, accentColor, bgColor, onComplete,
 }: {
-  title: string; child: string; childInitial: string; childColor: string;
+  id: string; title: string; child: string; childInitial: string; childColor: string;
   time: string; Icon: React.ElementType; accentColor: string; bgColor: string;
+  onComplete?: (id: string) => void;
 }) {
   return (
     <div
@@ -161,7 +163,13 @@ function UpcomingCard({
           </span>
         </div>
       </div>
-      <CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: "oklch(0.65 0.14 140)" }} />
+      <button
+        onClick={() => onComplete?.(id)}
+        className="flex-shrink-0 rounded-full p-0.5 transition-colors hover:bg-[oklch(0.88_0.08_140_/_0.2)] active:scale-90"
+        aria-label="סמן כהושלם"
+      >
+        <CheckCircle2 className="w-4 h-4" style={{ color: "oklch(0.65 0.14 140)" }} />
+      </button>
     </div>
   );
 }
@@ -619,16 +627,42 @@ export default function Dashboard() {
     setCalendarConnectLoading(true);
     try {
       const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Persist the original session so /auth/restore-session can bring the user back
+      // after Google OAuth may have switched the active Supabase session.
+      localStorage.setItem("__bf_cal_restore", JSON.stringify({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      }));
+      // Cookie lets the server-side callback identify the original user (SameSite=Lax
+      // cookies are sent on top-level cross-site GET redirects).
+      document.cookie = `__bf_cal_uid=${session.user.id}; path=/; max-age=300; SameSite=Lax`;
+
       await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           scopes: "https://www.googleapis.com/auth/calendar.events",
           queryParams: { access_type: "offline", prompt: "consent" },
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/calendar-callback`,
         },
       });
     } finally {
       setCalendarConnectLoading(false);
+    }
+  };
+
+  const handleCompleteMoment = async (momentId: string) => {
+    // Optimistic UI
+    setUpcomingMoments((prev) => prev.filter((m) => m.id !== momentId));
+    try {
+      const supabase = createClient();
+      await supabase.from("saved_moments").update({ completed: true }).eq("id", momentId);
+      toast.success("הרגע הושלם! 🎉");
+    } catch (e) {
+      console.error("Failed to complete moment:", e);
+      toast.error("שגיאה בסימון הרגע. נסה שוב.");
     }
   };
 
@@ -881,6 +915,7 @@ export default function Dashboard() {
                     {upcomingMoments.map((m) => (
                       <UpcomingCard
                         key={m.id}
+                        id={m.id}
                         title={m.title}
                         child={m.childName}
                         childInitial={m.childInitial}
@@ -889,6 +924,7 @@ export default function Dashboard() {
                         Icon={m.IconComp}
                         accentColor={m.accentColor}
                         bgColor={m.bgColor}
+                        onComplete={handleCompleteMoment}
                       />
                     ))}
                   </div>

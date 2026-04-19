@@ -16,12 +16,16 @@ export default function PWAInstallBanner() {
 
   useEffect(() => {
     // Already installed or dismissed
-    if (
-      window.matchMedia("(display-mode: standalone)").matches ||
-      localStorage.getItem("pwa-banner-dismissed")
-    ) {
+    if (window.matchMedia("(display-mode: standalone)").matches) {
       setDismissed(true);
       return;
+    }
+    // Re-show after 30 days if previously dismissed
+    const dismissedAt = localStorage.getItem("pwa-banner-dismissed");
+    if (dismissedAt) {
+      const elapsed = Date.now() - parseInt(dismissedAt, 10);
+      if (elapsed < 30 * 24 * 60 * 60 * 1000) { setDismissed(true); return; }
+      localStorage.removeItem("pwa-banner-dismissed");
     }
 
     // iOS detection (no beforeinstallprompt, needs manual share instruction)
@@ -49,7 +53,7 @@ export default function PWAInstallBanner() {
   };
 
   const handleDismiss = () => {
-    localStorage.setItem("pwa-banner-dismissed", "1");
+    localStorage.setItem("pwa-banner-dismissed", Date.now().toString());
     setDismissed(true);
     setIsIOSDismissed(true);
   };

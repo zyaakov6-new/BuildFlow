@@ -51,6 +51,45 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // --- Free plan limit: 3 AI suggestions per week ---
+  // @ts-ignore — subscription columns added via migration, not yet in generated types
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("subscription_status, subscription_plan")
+    .eq("id", user.id)
+    .single() as unknown as { data: { subscription_status: string | null; subscription_plan: string | null } | null };
+
+  const isPremium =
+    profile?.subscription_status === "active" &&
+    profile?.subscription_plan &&
+    profile.subscription_plan !== "free";
+
+  if (!isPremium) {
+    // Calculate start of current week (Sunday)
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 = Sunday
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - dayOfWeek);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const { count } = await supabase
+      .from("saved_moments")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("created_at", startOfWeek.toISOString());
+
+    if ((count ?? 0) >= 3) {
+      return NextResponse.json(
+        {
+          error: "free_limit",
+          message:
+            "הגעת למגבלת 3 הצעות בשבוע. שדרג לפרימיום להצעות ללא הגבלה.",
+        },
+        { status: 429 }
+      );
+    }
+  }
+
   const childId = req.nextUrl.searchParams.get("child_id");
   const excludeRaw = req.nextUrl.searchParams.get("exclude") ?? "";
   const exclude = excludeRaw ? excludeRaw.split(",") : [];

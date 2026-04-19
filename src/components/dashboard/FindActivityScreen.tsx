@@ -87,6 +87,14 @@ export default function FindActivityScreen() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // Schedule date/time — default: tomorrow at 17:00
+  const [scheduleDate, setScheduleDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10); // "YYYY-MM-DD"
+  });
+  const [scheduleTime, setScheduleTime] = useState("17:00");
+
   // Load children on mount
   useEffect(() => {
     (async () => {
@@ -150,9 +158,9 @@ export default function FindActivityScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("no user");
 
-      const scheduledAt = new Date();
-      scheduledAt.setDate(scheduledAt.getDate() + 1);
-      scheduledAt.setHours(17, 0, 0, 0);
+      const [hh, mm] = scheduleTime.split(":").map(Number);
+      const scheduledAt = new Date(scheduleDate + "T00:00:00");
+      scheduledAt.setHours(hh, mm, 0, 0);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await (supabase as any).from("saved_moments").insert({
@@ -349,6 +357,43 @@ export default function FindActivityScreen() {
               {prepLabel(activity.prep_min)}
             </span>
           </div>
+        </div>
+
+        {/* Schedule date & time picker */}
+        <div
+          className="rounded-2xl p-4 border mb-5 flex items-center gap-3"
+          dir="rtl"
+          style={{
+            background: "oklch(0.97 0.01 85)",
+            borderColor: "oklch(0.91 0.03 85)",
+          }}
+        >
+          <Clock className="w-4 h-4 flex-shrink-0" style={{ color: "oklch(0.55 0.14 140)" }} />
+          <span className="text-sm font-bold flex-shrink-0" style={{ color: "oklch(0.35 0.03 255)" }}>
+            מתי?
+          </span>
+          <input
+            type="date"
+            value={scheduleDate}
+            onChange={(e) => setScheduleDate(e.target.value)}
+            className="flex-1 min-w-0 text-sm font-medium rounded-xl px-3 py-2 border-none outline-none"
+            style={{
+              background: "white",
+              color: "oklch(0.25 0.03 255)",
+              boxShadow: "0 1px 4px oklch(0 0 0 / 0.06)",
+            }}
+          />
+          <input
+            type="time"
+            value={scheduleTime}
+            onChange={(e) => setScheduleTime(e.target.value)}
+            className="w-[7rem] text-sm font-medium rounded-xl px-3 py-2 border-none outline-none"
+            style={{
+              background: "white",
+              color: "oklch(0.25 0.03 255)",
+              boxShadow: "0 1px 4px oklch(0 0 0 / 0.06)",
+            }}
+          />
         </div>
 
         {/* Action buttons */}
