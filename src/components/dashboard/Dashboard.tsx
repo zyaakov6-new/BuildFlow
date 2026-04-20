@@ -15,6 +15,9 @@ import ReportsScreen from "./ReportsScreen";
 import SettingsScreen from "./SettingsScreen";
 import InlineSpinner from "@/components/ui/inline-spinner";
 import PWAInstallBanner from "@/components/PWAInstallBanner";
+import ReflectionModal from "./ReflectionModal";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import { Flame } from "lucide-react";
 import { toast } from "sonner";
 
 // ---- Types ----
@@ -409,6 +412,8 @@ export default function Dashboard() {
   const [calendarConnected, setCalendarConnected] = useState<boolean | null>(null);
   const [calendarConnectLoading, setCalendarConnectLoading] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
+  const [streak, setStreak] = useState(0);
+  const [reflection, setReflection] = useState<{ id: string; title: string } | null>(null);
 
   // ---- Load real data on mount ----
   useEffect(() => {
@@ -464,6 +469,33 @@ export default function Dashboard() {
           .gte("scheduled_at", weekStart.toISOString())
           .lt("scheduled_at", weekEnd.toISOString());
         setWeekActiveDays([...new Set((weekMoments ?? []).map((m) => new Date(m.scheduled_at!).getDay()))]);
+
+        // 4b. Streak — consecutive days with at least one completed moment, ending today or yesterday
+        const { data: streakMoments } = await supabase
+          .from("saved_moments")
+          .select("scheduled_at")
+          .eq("user_id", user.id)
+          .eq("completed", true)
+          .order("scheduled_at", { ascending: false })
+          .limit(90);
+        const dayKeys = new Set(
+          (streakMoments ?? [])
+            .map((m) => m.scheduled_at ? new Date(m.scheduled_at) : null)
+            .filter((d): d is Date => d !== null)
+            .map((d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`)
+        );
+        let s = 0;
+        const cursor = new Date();
+        cursor.setHours(0, 0, 0, 0);
+        // Allow streak to include "yesterday" if today has no entry yet
+        if (!dayKeys.has(`${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`)) {
+          cursor.setDate(cursor.getDate() - 1);
+        }
+        while (dayKeys.has(`${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`)) {
+          s++;
+          cursor.setDate(cursor.getDate() - 1);
+        }
+        setStreak(s);
 
         // 4. Weekly score
         const { data: scores } = await supabase
@@ -654,15 +686,31 @@ export default function Dashboard() {
   };
 
   const handleCompleteMoment = async (momentId: string) => {
+    // Find title for the reflection prompt
+    const target = upcomingMoments.find((m) => m.id === momentId);
     // Optimistic UI
     setUpcomingMoments((prev) => prev.filter((m) => m.id !== momentId));
     try {
       const supabase = createClient();
       await supabase.from("saved_moments").update({ completed: true }).eq("id", momentId);
-      toast.success("הרגע הושלם! 🎉");
+      // Open reflection modal
+      if (target) setReflection({ id: momentId, title: target.title });
     } catch (e) {
       console.error("Failed to complete moment:", e);
       toast.error("שגיאה בסימון הרגע. נסה שוב.");
+    }
+  };
+
+  const handleReflectionSubmit = async (rating: 1 | 2 | 3) => {
+    if (!reflection) return;
+    try {
+      const supabase = createClient();
+      await supabase.from("saved_moments").update({ rating }).eq("id", reflection.id);
+      toast.success(rating === 3 ? "יופי! נזכור את זה 🎉" : rating === 2 ? "נשמר — תודה על המשוב" : "הבנו — ננסה משהו אחר בפעם הבאה");
+    } catch (e) {
+      console.error("Failed to save rating:", e);
+    } finally {
+      setReflection(null);
     }
   };
 
@@ -740,11 +788,19 @@ export default function Dashboard() {
         </button>
       </div>
 
+      {/* ---- Reflection modal ---- */}
+      <ReflectionModal
+        open={!!reflection}
+        title={reflection?.title ?? ""}
+        onClose={() => setReflection(null)}
+        onSubmit={handleReflectionSubmit}
+      />
+
       {/* ---- Screen routing ---- */}
-      {activeTab === "suggestions" && <FindActivityScreen />}
-      {activeTab === "calendar"    && <CalendarScreen onNavigateToSuggestions={() => setActiveTab("suggestions")} />}
-      {activeTab === "reports"     && <ReportsScreen />}
-      {activeTab === "profile"     && <SettingsScreen />}
+      {activeTab === "suggestions" && <ErrorBoundary><FindActivityScreen /></ErrorBoundary>}
+      {activeTab === "calendar"    && <ErrorBoundary><CalendarScreen onNavigateToSuggestions={() => setActiveTab("suggestions")} /></ErrorBoundary>}
+      {activeTab === "reports"     && <ErrorBoundary><ReportsScreen /></ErrorBoundary>}
+      {activeTab === "profile"     && <ErrorBoundary><SettingsScreen /></ErrorBoundary>}
 
       {/* ---- Home screen ---- */}
       {activeTab === "home" && (
@@ -770,13 +826,29 @@ export default function Dashboard() {
           {!loadingData && (
           <>
           {/* Welcome strip */}
-          <div className="text-right mb-5">
-            <p className="text-2xl font-black" style={{ color: "oklch(0.18 0.03 255)" }}>
-              {greeting}, {userName}
-            </p>
-            <p className="text-sm mt-1" style={{ color: "oklch(0.55 0.03 255)" }}>
-              {homeSummary}
-            </p>
+          <div className="flex items-start justify-between mb-5 gap-3">
+            {streak >= 2 && (
+              <div
+                className="flex-shrink-0 flex items-center gap-1.5 rounded-xl px-3 py-1.5"
+                style={{
+                  background: "linear-gradient(135deg, oklch(0.72 0.18 42 / 0.15), oklch(0.68 0.2 30 / 0.15))",
+                  border: "1px solid oklch(0.72 0.18 42 / 0.25)",
+                }}
+              >
+                <Flame className="w-4 h-4" style={{ color: "oklch(0.58 0.18 42)" }} />
+                <span className="text-sm font-black" style={{ color: "oklch(0.5 0.18 42)" }}>
+                  {streak} {streak === 2 ? "ימים" : streak <= 10 ? "ימים" : "יום"}
+                </span>
+              </div>
+            )}
+            <div className="text-right flex-1">
+              <p className="text-2xl font-black" style={{ color: "oklch(0.18 0.03 255)" }}>
+                {greeting}, {userName}
+              </p>
+              <p className="text-sm mt-1" style={{ color: "oklch(0.55 0.03 255)" }}>
+                {homeSummary}
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

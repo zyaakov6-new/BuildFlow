@@ -11,6 +11,11 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error("[BondFlow] Unhandled error:", error);
+    // Forward to Sentry if loaded
+    if (typeof window !== "undefined") {
+      const w = window as unknown as { Sentry?: { captureException: (e: Error) => void } };
+      w.Sentry?.captureException(error);
+    }
   }, [error]);
 
   return (

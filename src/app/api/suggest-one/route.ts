@@ -108,6 +108,33 @@ export async function GET(req: NextRequest) {
 
   const { name, age_group, interests } = child as { name: string; age_group: string; interests: string[] };
 
+  // --- Personalization memory: pull loved / disliked / done activities for this child ---
+  const [{ data: pastMoments }, { data: pastSuggestions }] = await Promise.all([
+    supabase
+      .from("saved_moments")
+      .select("title, category, rating, completed")
+      .eq("user_id", user.id)
+      .eq("child_id", childId)
+      .order("created_at", { ascending: false })
+      .limit(30),
+    supabase
+      .from("suggestions")
+      .select("title, status")
+      .eq("user_id", user.id)
+      .eq("child_id", childId)
+      .order("generated_at", { ascending: false })
+      .limit(30),
+  ]);
+
+  const moments = (pastMoments ?? []) as Array<{ title: string; category: string | null; rating: number | null; completed: boolean | null }>;
+  const sugs = (pastSuggestions ?? []) as Array<{ title: string; status: string | null }>;
+
+  const loved     = moments.filter((m) => (m.rating ?? 0) >= 3).map((m) => m.title);
+  const disliked  = moments.filter((m) => (m.rating ?? 0) === 1).map((m) => m.title);
+  const done      = moments.filter((m) => m.completed).map((m) => m.title);
+  const dismissed = sugs.filter((s) => s.status === "dismissed").map((s) => s.title);
+  const recentTitles = Array.from(new Set([...done, ...dismissed, ...exclude])).slice(0, 20);
+
   // Try AI first
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (apiKey) {
@@ -115,16 +142,22 @@ export async function GET(req: NextRequest) {
       const { default: Anthropic } = await import("@anthropic-ai/sdk");
       const client = new Anthropic({ apiKey });
 
-      const excludeNote = exclude.length > 0 ? `\nDo NOT suggest any of these (already shown): ${exclude.join(", ")}` : "";
+      const memoryLines: string[] = [];
+      if (loved.length > 0)       memoryLines.push(`Activities they LOVED (lean toward similar themes): ${loved.join(", ")}`);
+      if (disliked.length > 0)    memoryLines.push(`Activities they DISLIKED (avoid similar themes): ${disliked.join(", ")}`);
+      if (recentTitles.length > 0) memoryLines.push(`Do NOT suggest any of these (recently shown or done): ${recentTitles.join(", ")}`);
+      const memoryBlock = memoryLines.length > 0 ? `\n\nPersonalization memory:\n${memoryLines.join("\n")}` : "";
+
       const prompt = `You are a warm Israeli family activity expert. Suggest ONE short family bonding activity in Hebrew for a parent and child.
 
-Child: ${name}, age group: ${age_group}, interests: ${interests.length > 0 ? interests.join(", ") : "general"}${excludeNote}
+Child: ${name}, age group: ${age_group}, interests: ${interests.length > 0 ? interests.join(", ") : "general"}${memoryBlock}
 
 Rules:
 - Activity must be doable at home or nearby, in 10–30 minutes
 - Zero or minimal prep
 - Warm, specific, actionable description (2 sentences)
 - Hebrew throughout
+- Variety is important — don't suggest the same theme repeatedly
 
 Respond with ONLY valid JSON, no markdown:
 {"title":"...","description":"...","duration_min":20,"prep_min":0,"category":"play","accent_color":"oklch(0.55 0.14 140)","bg_color":"oklch(0.88 0.08 140 / 0.15)"}`;

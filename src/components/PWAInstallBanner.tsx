@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { X, Download } from "lucide-react";
+import Image from "next/image";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -68,7 +69,7 @@ export default function PWAInstallBanner() {
           boxShadow: "0 8px 32px oklch(0 0 0 / 0.3)",
         }}
       >
-        <img src="/logo.jpg" alt="BondFlow" className="w-10 h-10 rounded-xl object-cover flex-shrink-0" style={{ objectPosition: "50% 28%" }} />
+        <Image src="/icon-192.png" alt="BondFlow" width={40} height={40} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" style={{ objectPosition: "50% 28%" }} />
         <div className="flex-1 text-right min-w-0">
           <p className="text-sm font-black text-white leading-tight">הוסף לדף הבית</p>
           <p className="text-xs mt-0.5" style={{ color: "oklch(0.75 0.03 255)" }}>גישה מהירה בלחיצה אחת</p>
@@ -98,7 +99,7 @@ export default function PWAInstallBanner() {
           boxShadow: "0 8px 32px oklch(0 0 0 / 0.3)",
         }}
       >
-        <img src="/logo.jpg" alt="BondFlow" className="w-10 h-10 rounded-xl object-cover flex-shrink-0 mt-0.5" style={{ objectPosition: "50% 28%" }} />
+        <Image src="/icon-192.png" alt="BondFlow" width={40} height={40} className="w-10 h-10 rounded-xl object-cover flex-shrink-0 mt-0.5" style={{ objectPosition: "50% 28%" }} />
         <div className="flex-1 text-right min-w-0">
           <p className="text-sm font-black text-white leading-tight mb-0.5">הוסף לדף הבית</p>
           <p className="text-xs leading-relaxed" style={{ color: "oklch(0.75 0.03 255)" }}>

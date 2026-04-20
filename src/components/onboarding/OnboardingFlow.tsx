@@ -1117,7 +1117,9 @@ export default function OnboardingFlow() {
       console.error("Failed to save onboarding data:", e);
     } finally {
       setSaving(false);
-      router.push("/dashboard");
+      // Show celebration before routing to dashboard
+      setStep(5);
+      setTimeout(() => router.push("/dashboard"), 2800);
     }
   };
 
@@ -1144,13 +1146,59 @@ export default function OnboardingFlow() {
       />
     );
 
+  if (step === 4)
+    return (
+      <FirstWinScreen
+        data={data}
+        onBack={retreat}
+        onFinish={handleFinish}
+        isFinishing={saving}
+        onSaveActivity={handleSaveActivity}
+      />
+    );
+
+  // step === 5: Celebration screen before dashboard
+  return <CompletionScreen childNames={data.children.map((c) => c.name.trim()).filter(Boolean)} />;
+}
+
+function CompletionScreen({ childNames }: { childNames: string[] }) {
+  const subtitle = childNames.length > 0
+    ? `עם ${childNames.join(" ו")}`
+    : "עם המשפחה שלך";
   return (
-    <FirstWinScreen
-      data={data}
-      onBack={retreat}
-      onFinish={handleFinish}
-      isFinishing={saving}
-      onSaveActivity={handleSaveActivity}
-    />
+    <div
+      dir="rtl"
+      className="fixed inset-0 flex flex-col items-center justify-center text-center px-6"
+      style={{
+        background: "linear-gradient(135deg, oklch(0.62 0.16 148), oklch(0.56 0.18 155))",
+      }}
+    >
+      <div className="relative">
+        <div
+          className="absolute inset-0 rounded-full blur-3xl opacity-40"
+          style={{ background: "oklch(0.95 0.1 80)" }}
+        />
+        <div
+          className="relative w-28 h-28 rounded-full flex items-center justify-center text-6xl animate-[bounce_1s_ease-in-out_infinite]"
+          style={{ background: "oklch(1 0 0 / 0.25)", border: "2px solid oklch(1 0 0 / 0.4)" }}
+        >
+          🎉
+        </div>
+      </div>
+      <h1 className="text-3xl font-black text-white mt-8 mb-2">הכל מוכן!</h1>
+      <p className="text-base text-white/90 mb-1">{subtitle}</p>
+      <p className="text-sm text-white/75 mt-4 max-w-sm">
+        מצאנו לך רגעים. עכשיו זה הזמן ליצור זיכרונות.
+      </p>
+      <div className="flex gap-1.5 mt-8">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="w-2 h-2 rounded-full bg-white/60 animate-pulse"
+            style={{ animationDelay: `${i * 0.2}s` }}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
