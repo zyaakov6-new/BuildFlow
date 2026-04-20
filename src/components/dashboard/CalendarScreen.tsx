@@ -189,7 +189,7 @@ export default function CalendarScreen({
           const sm = d ? toMin(d.getHours(), d.getMinutes()) : 0;
           return { id: `bf-${m.id}`, dbId: m.id, title: m.title,
                    startMin: sm, endMin: sm + (m.duration_min ?? 30),
-                   source: "bondflow", completed: m.completed,
+                   source: "bondflow", completed: m.completed ?? false,
                    childName: cn, childInitial: cn[0] ?? "?",
                    childColor: c?.avatar_color ?? "oklch(0.65 0.14 140)" };
         });

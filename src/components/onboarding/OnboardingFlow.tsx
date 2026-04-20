@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 // ---- Types ----
-type StepNum = 1 | 2 | 3 | 4;
+type StepNum = 1 | 2 | 3 | 4 | 5;
 
 interface Child {
   id: number;

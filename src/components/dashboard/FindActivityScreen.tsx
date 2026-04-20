@@ -106,7 +106,7 @@ export default function FindActivityScreen() {
         .select("id, name, age_group, avatar_color")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true });
-      setChildren(data ?? []);
+      setChildren((data ?? []).map(c => ({ ...c, age_group: c.age_group ?? "" })));
       setLoadingChildren(false);
     })();
   }, []);
