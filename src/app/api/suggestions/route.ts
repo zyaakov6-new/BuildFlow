@@ -579,7 +579,7 @@ export async function GET(request: Request) {
     const childProfiles = children.map((c) => ({
       id: c.id,
       name: c.name,
-      age_group: c.age_group,
+      age_group: c.age_group ?? "",
       interests: c.interests ?? [],
     }));
 
