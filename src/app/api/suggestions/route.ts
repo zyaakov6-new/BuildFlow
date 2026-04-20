@@ -610,7 +610,7 @@ export async function GET(request: Request) {
 
     // Fallback: template system — shuffle so repeat refreshes vary
     const allInterests = children.flatMap((c) => c.interests ?? []);
-    const allAgeGroups = children.map((c) => c.age_group).filter(Boolean);
+    const allAgeGroups = children.map((c) => c.age_group).filter((g): g is string => !!g);
 
     const ranked = [...TEMPLATES]
       .map((t) => ({
