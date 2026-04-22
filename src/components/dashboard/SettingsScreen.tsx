@@ -225,12 +225,22 @@ export default function SettingsScreen() {
 
   const handleConnectCalendar = async () => {
     setConnectingCalendar(true);
+    // Remember the current user so the callback writes the token to the
+    // right profile even if Google swaps the Supabase session mid-flow.
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      localStorage.setItem("__bf_cal_restore", JSON.stringify({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      }));
+      document.cookie = `__bf_cal_uid=${session.user.id}; path=/; max-age=300; SameSite=Lax`;
+    }
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         scopes: "https://www.googleapis.com/auth/calendar.events",
         queryParams: { access_type: "offline", prompt: "consent" },
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/calendar-callback`,
       },
     });
   };
