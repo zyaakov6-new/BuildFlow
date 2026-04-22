@@ -17,6 +17,9 @@ import {
   Clock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { enablePushNotifications } from "@/lib/push";
+import { toast } from "sonner";
+import { haptic } from "@/lib/haptic";
 
 // ---- Toggle switch ----
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -267,6 +270,20 @@ export default function SettingsScreen() {
   }, [supabase, freeSlots]);
 
   const set = async (key: keyof typeof settings, val: boolean | string) => {
+    // If user is turning push ON, request browser permission + subscribe first.
+    if (key === "pushNotifications" && val === true) {
+      haptic("tap");
+      const res = await enablePushNotifications();
+      if (!res.ok) {
+        if (res.reason === "denied") toast.error("ההרשאה נחסמה בדפדפן. הפעל התראות בהגדרות הדפדפן.");
+        else if (res.reason === "unsupported") toast.error("הדפדפן לא תומך בהתראות פוש.");
+        else if (res.reason === "no_vapid") toast.error("חסרות הגדרות VAPID בשרת.");
+        else toast.error("לא הצלחנו להפעיל התראות.");
+        return;
+      }
+      toast.success("התראות הופעלו ✓");
+    }
+
     setSettings((prev) => ({ ...prev, [key]: val }));
     // Persist notification prefs to DB
     const dbKey = key === "pushNotifications" ? "notification_push"

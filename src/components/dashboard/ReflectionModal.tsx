@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
+import MomentPhotoUploader from "./MomentPhotoUploader";
 
 interface Props {
   open: boolean;
   title: string;
+  momentId?: string | null;
+  userId?: string | null;
   onClose: () => void;
   onSubmit: (rating: 1 | 2 | 3) => void | Promise<void>;
 }
@@ -16,7 +19,7 @@ const OPTIONS: { emoji: string; rating: 1 | 2 | 3; label: string }[] = [
   { emoji: "😊", rating: 3, label: "היה מעולה" },
 ];
 
-export default function ReflectionModal({ open, title, onClose, onSubmit }: Props) {
+export default function ReflectionModal({ open, title, momentId, userId, onClose, onSubmit }: Props) {
   const [submitting, setSubmitting] = useState(false);
 
   if (!open) return null;
@@ -81,6 +84,12 @@ export default function ReflectionModal({ open, title, onClose, onSubmit }: Prop
             </button>
           ))}
         </div>
+
+        {momentId && userId && (
+          <div className="mt-4">
+            <MomentPhotoUploader momentId={momentId} userId={userId} />
+          </div>
+        )}
 
         <p className="text-xs text-center mt-4" style={{ color: "oklch(0.62 0.03 255)" }}>
           הדירוג שלך עוזר לנו להמליץ פעילויות טובות יותר

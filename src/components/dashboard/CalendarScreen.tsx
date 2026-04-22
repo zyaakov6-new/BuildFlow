@@ -62,6 +62,7 @@ interface FreeSlot {
 interface SugItem {
   id: string;
   title: string;
+  description: string | null;
   childName: string;
   childInitial: string;
   childColor: string;
@@ -137,7 +138,7 @@ export default function CalendarScreen({
         const [{ data: kids }, { data: sug }] = await Promise.all([
           sb.from("children").select("id, name, avatar_color").eq("user_id", user.id),
           sb.from("suggestions")
-            .select("id, title, child_id, duration_min, prep_min, accent_color, bg_color")
+            .select("id, title, description, child_id, duration_min, prep_min, accent_color, bg_color")
             .eq("user_id", user.id)
             .not("status", "in", '("saved","dismissed")')
             .limit(30),
@@ -147,7 +148,7 @@ export default function CalendarScreen({
           (sug ?? []).map(s => {
             const c = s.child_id ? cMap.get(s.child_id) : null;
             const n = c?.name ?? "הילד שלך";
-            return { id: s.id, title: s.title, childName: n, childInitial: n[0] ?? "?",
+            return { id: s.id, title: s.title, description: s.description ?? null, childName: n, childInitial: n[0] ?? "?",
                      childColor: c?.avatar_color ?? "oklch(0.72 0.18 42)",
                      durMin: s.duration_min ?? 30, childId: s.child_id ?? null };
           })
@@ -576,12 +577,17 @@ export default function CalendarScreen({
 
               return (
                 <div key={slot.key} className="flex items-start gap-3">
-                  {/* Time label */}
+                  {/* Time label — when a suggestion is selected, show the
+                      activity block range (startMin → startMin+durMin), not
+                      the full free window. Falls back to full window when
+                      there's no suggestion yet. */}
                   <div className="w-12 flex-shrink-0 text-right pt-3.5">
                     <p className="text-xs font-black leading-none" style={{ color: "oklch(0.58 0.14 140)" }}>
                       {minToStr(slot.startMin)}
                     </p>
-                    <p className="text-xs mt-0.5" style={{ color: "oklch(0.7 0.03 255)" }}>{minToStr(slot.endMin)}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "oklch(0.7 0.03 255)" }}>
+                      {minToStr(sug ? slot.startMin + sug.durMin : slot.endMin)}
+                    </p>
                   </div>
                   {/* Suggestion tile */}
                   <div className="flex-1 rounded-2xl p-3.5"
@@ -598,7 +604,12 @@ export default function CalendarScreen({
                           </div>
                           <div className="flex-1 text-right min-w-0">
                             <p className="font-black text-sm" style={{ color: "oklch(0.2 0.03 255)" }}>{sug.title}</p>
-                            <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                            {sug.description && (
+                              <p className="text-xs mt-1 leading-relaxed" style={{ color: "oklch(0.42 0.03 255)" }}>
+                                {sug.description}
+                              </p>
+                            )}
+                            <div className="flex items-center justify-end gap-1.5 mt-1.5">
                               <span className="text-xs flex items-center gap-0.5" style={{ color: "oklch(0.6 0.03 255)" }}>
                                 <Clock className="w-3 h-3" />{sug.durMin} דק'
                               </span>

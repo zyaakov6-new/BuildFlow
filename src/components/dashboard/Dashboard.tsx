@@ -19,6 +19,7 @@ import ReflectionModal from "./ReflectionModal";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { Flame } from "lucide-react";
 import { toast } from "sonner";
+import { haptic } from "@/lib/haptic";
 
 // ---- Types ----
 type Tab = "home" | "suggestions" | "calendar" | "reports" | "profile";
@@ -413,6 +414,7 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userName, setUserName] = useState<string>("...");
   const [userInitial, setUserInitial] = useState<string>("?");
+  const [userId, setUserId] = useState<string | null>(null);
   const [weekScore, setWeekScore] = useState<number>(0);
   const [scoreDelta, setScoreDelta] = useState<number>(0);
   const [momentsCount, setMomentsCount] = useState<number>(0);
@@ -433,6 +435,7 @@ export default function Dashboard() {
         // 1. User
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
+        setUserId(user.id);
 
         // 2. Profile — calendar token is written ONLY by /auth/callback (with encryption)
         //    Never overwrite it from session.provider_token here, which may be a basic
@@ -697,6 +700,8 @@ export default function Dashboard() {
   const handleCompleteMoment = async (momentId: string) => {
     // Find title for the reflection prompt
     const target = upcomingMoments.find((m) => m.id === momentId);
+    // Subtle haptic confirmation on mark-as-done (no-op on desktop).
+    haptic("success");
     // Optimistic UI
     setUpcomingMoments((prev) => prev.filter((m) => m.id !== momentId));
     try {
@@ -801,6 +806,8 @@ export default function Dashboard() {
       <ReflectionModal
         open={!!reflection}
         title={reflection?.title ?? ""}
+        momentId={reflection?.id ?? null}
+        userId={userId}
         onClose={() => setReflection(null)}
         onSubmit={handleReflectionSubmit}
       />

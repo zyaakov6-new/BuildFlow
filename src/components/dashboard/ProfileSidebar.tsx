@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { getPaywallVariant, PAYWALL_COPY, type PaywallVariant } from "@/lib/paywall-variant";
 
 interface ProfileSidebarProps {
   open: boolean;
@@ -104,6 +105,7 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
   const [savingChild, setSavingChild] = useState(false);
   const [calendarConnected, setCalendarConnected] = useState<boolean | null>(null);
   const [upgradingPlan, setUpgradingPlan] = useState(false);
+  const [paywallVariant, setPaywallVariant] = useState<PaywallVariant>(0);
 
   useEffect(() => {
     if (!open) return;
@@ -130,6 +132,8 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
       const name = profileData?.full_name ?? user.email?.split("@")[0] ?? "משתמש";
       setCalendarConnected(!!(profileData?.google_calendar_token));
       setChildren(kidsData);
+      // A/B paywall variant (deterministic per user; persists on first resolve)
+      getPaywallVariant(supabase, user.id).then(setPaywallVariant).catch(() => {});
 
       const subStatus = profileData?.subscription_status ?? "free";
       const subPlan   = profileData?.subscription_plan   ?? "free";
@@ -578,13 +582,19 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
                   {/* decorative glow */}
                   <div className="absolute -top-5 -left-5 w-20 h-20 rounded-full opacity-20 blur-xl pointer-events-none" style={{ background: "oklch(0.65 0.14 140)" }} />
                   <div className="relative z-10">
-                    <div className="flex items-center justify-end gap-2 mb-3">
+                    <div className="flex items-center justify-end gap-2 mb-2">
                       <p className="text-xs font-black text-white">מה פרימיום מוסיף</p>
                       <div className="flex items-center gap-1 rounded-lg px-2 py-0.5" style={{ background: "oklch(0.72 0.18 42)" }}>
                         <Crown className="w-3 h-3 text-white" />
                         <span className="text-xs font-black text-white">פרימיום</span>
                       </div>
                     </div>
+                    <p className="text-sm font-black text-white text-right leading-snug mb-1">
+                      {PAYWALL_COPY[paywallVariant].headline}
+                    </p>
+                    <p className="text-xs text-right mb-3" style={{ color: "oklch(0.78 0.03 255)" }}>
+                      {PAYWALL_COPY[paywallVariant].subhead}
+                    </p>
                     <ul className="flex flex-col gap-1.5 text-right mb-4">
                       {PLAN_FEATURES.premium.map((f, i) => (
                         <li key={i} className="flex items-center gap-2 flex-row-reverse">
@@ -609,7 +619,7 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
                       className="w-full rounded-xl py-2.5 text-xs font-black text-white gradient-cta disabled:opacity-60 active:scale-[0.98] transition-all"
                       style={{ boxShadow: "0 4px 14px oklch(0.65 0.14 140 / 0.4)" }}
                     >
-                      {upgradingPlan ? "מעביר לתשלום..." : "שדרג לפרימיום עכשיו"}
+                      {upgradingPlan ? "מעביר לתשלום..." : PAYWALL_COPY[paywallVariant].cta}
                     </button>
                   </div>
                 </div>

@@ -74,6 +74,56 @@ export default async function AdminPage() {
           />
         </div>
 
+        {/* Funnel: signup → onboarded → saved moment → premium */}
+        {(() => {
+          const signups    = totalUsers ?? 0;
+          const onboarded  = completedOnboarding ?? 0;
+          const withMoment = activeWeekly ?? 0;
+          const premium    = premiumUsers ?? 0;
+          const stages = [
+            { label: "נרשמו",         value: signups,    color: "oklch(0.55 0.14 140)" },
+            { label: "סיימו onboarding", value: onboarded,  color: "oklch(0.58 0.18 42)" },
+            { label: "פעילים (7י׳)",  value: withMoment, color: "oklch(0.52 0.18 255)" },
+            { label: "פרימיום",       value: premium,    color: "oklch(0.52 0.18 280)" },
+          ];
+          const maxVal = Math.max(signups, 1);
+          return (
+            <div
+              className="rounded-2xl border p-4"
+              style={{ background: "white", borderColor: "oklch(0.93 0.02 85)" }}
+            >
+              <p className="text-sm font-black mb-3 text-right" style={{ color: "oklch(0.2 0.03 255)" }}>
+                משפך המרה
+              </p>
+              <div className="flex flex-col gap-2.5">
+                {stages.map((s, i) => {
+                  const pct = Math.max(4, Math.round((s.value / maxVal) * 100));
+                  const prev = i === 0 ? null : stages[i - 1].value;
+                  const drop = prev && prev > 0 ? Math.round((s.value / prev) * 100) : null;
+                  return (
+                    <div key={s.label} className="flex items-center gap-3">
+                      <div className="w-28 text-right text-xs font-bold" style={{ color: "oklch(0.3 0.03 255)" }}>
+                        {s.label}
+                      </div>
+                      <div className="flex-1 relative h-7 rounded-lg overflow-hidden" style={{ background: "oklch(0.95 0.01 85)" }}>
+                        <div
+                          className="absolute inset-y-0 right-0 flex items-center justify-start px-2"
+                          style={{ width: `${pct}%`, background: s.color }}
+                        >
+                          <span className="text-xs font-black text-white">{s.value}</span>
+                        </div>
+                      </div>
+                      <div className="w-14 text-xs text-left tabular-nums" style={{ color: "oklch(0.55 0.03 255)" }}>
+                        {drop !== null ? `${drop}%` : "—"}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Recent signups */}
         <div
           className="rounded-2xl border"
