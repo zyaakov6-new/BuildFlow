@@ -1,5 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { getHolidayContext, seasonHint } from "@/lib/hebrew-calendar";
+import { getWeather } from "@/lib/weather";
+import { bumpAndCheckAIUsage, DAILY_CAP_FREE, DAILY_CAP_PREMIUM } from "@/lib/rate-limit";
 
 interface Activity {
   title: string;
@@ -135,6 +138,16 @@ export async function GET(req: NextRequest) {
   const dismissed = sugs.filter((s) => s.status === "dismissed").map((s) => s.title);
   const recentTitles = Array.from(new Set([...done, ...dismissed, ...exclude])).slice(0, 20);
 
+  // --- Daily AI rate limit (abuse + cost protection) ---
+  const cap = isPremium ? DAILY_CAP_PREMIUM : DAILY_CAP_FREE;
+  const usage = await bumpAndCheckAIUsage(supabase, user.id, cap);
+  if (!usage.ok) {
+    return NextResponse.json(
+      { error: "rate_limited", message: `הגעת לתקרה היומית של ${usage.cap} הצעות. נסה שוב מחר.` },
+      { status: 429 }
+    );
+  }
+
   // Try AI first
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (apiKey) {
@@ -148,9 +161,18 @@ export async function GET(req: NextRequest) {
       if (recentTitles.length > 0) memoryLines.push(`Do NOT suggest any of these (recently shown or done): ${recentTitles.join(", ")}`);
       const memoryBlock = memoryLines.length > 0 ? `\n\nPersonalization memory:\n${memoryLines.join("\n")}` : "";
 
+      // --- Cultural context: Jewish holiday + Israeli weather/season ---
+      const holiday = getHolidayContext();
+      const weather = await getWeather();
+      const contextLines: string[] = [];
+      if (holiday) contextLines.push(`Current Jewish holiday context: ${holiday.name}. ${holiday.hint} Lean into it if it fits naturally.`);
+      if (weather) contextLines.push(`Weather right now: ${weather.hint}`);
+      contextLines.push(`Season: ${seasonHint()}`);
+      const contextBlock = contextLines.length > 0 ? `\n\nContextual signals:\n${contextLines.join("\n")}` : "";
+
       const prompt = `You are a warm Israeli family activity expert. Suggest ONE short family bonding activity in Hebrew for a parent and child.
 
-Child: ${name}, age group: ${age_group}, interests: ${interests.length > 0 ? interests.join(", ") : "general"}${memoryBlock}
+Child: ${name}, age group: ${age_group}, interests: ${interests.length > 0 ? interests.join(", ") : "general"}${memoryBlock}${contextBlock}
 
 Rules:
 - Activity must be doable at home or nearby, in 10–30 minutes
@@ -158,6 +180,8 @@ Rules:
 - Warm, specific, actionable description (2 sentences)
 - Hebrew throughout
 - Variety is important — don't suggest the same theme repeatedly
+- If a Jewish holiday is active and it fits, reference it; don't force it.
+- Respect the weather: if rainy/hot/cold, prefer indoor; if pleasant, outdoor is great.
 
 Respond with ONLY valid JSON, no markdown:
 {"title":"...","description":"...","duration_min":20,"prep_min":0,"category":"play","accent_color":"oklch(0.55 0.14 140)","bg_color":"oklch(0.88 0.08 140 / 0.15)"}`;

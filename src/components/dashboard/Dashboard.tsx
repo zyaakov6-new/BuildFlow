@@ -95,14 +95,23 @@ function ScoreRing({ score, delta, activeDays }: { score: number; delta: number;
           <p className="text-xs mb-2" style={{ color: "oklch(0.62 0.03 255)" }}>
             20 נק׳ לכל פעילות · עד 100 בשבוע
           </p>
-          <div
-            className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1"
-            style={{ background: "oklch(0.88 0.08 140 / 0.2)" }}
-          >
-            <TrendingUp className="w-3 h-3" style={{ color: "oklch(0.52 0.14 140)" }} />
-            <span className="text-xs font-bold" style={{ color: "oklch(0.52 0.14 140)" }}>
-              {delta >= 0 ? "+" : ""}{delta} מהשבוע שעבר
-            </span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <div
+              className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1"
+              style={{ background: "oklch(0.88 0.08 140 / 0.2)" }}
+            >
+              <TrendingUp className="w-3 h-3" style={{ color: "oklch(0.52 0.14 140)" }} />
+              <span className="text-xs font-bold" style={{ color: "oklch(0.52 0.14 140)" }}>
+                {delta >= 0 ? "+" : ""}{delta} מהשבוע שעבר
+              </span>
+            </div>
+            <a
+              href="/insights"
+              className="inline-flex items-center gap-1 rounded-xl px-2.5 py-1 text-xs font-bold"
+              style={{ background: "oklch(0.92 0.06 255 / 0.5)", color: "oklch(0.35 0.1 255)" }}
+            >
+              תובנות ←
+            </a>
           </div>
         </div>
       </div>

@@ -1126,39 +1126,92 @@ export default function OnboardingFlow() {
   if (step === 1)
     return <WelcomeScreen onStart={advance} />;
 
-  if (step === 2)
-    return (
-      <FamilySetup
-        data={data}
-        setData={setData}
-        onNext={advance}
-        onBack={retreat}
-        onSkip={advance}
-      />
-    );
+  if (step === 5) {
+    // Celebration screen — no progress bar.
+    return <CompletionScreen childNames={data.children.map((c) => c.name.trim()).filter(Boolean)} />;
+  }
 
-  if (step === 3)
-    return (
-      <CalendarConnect
-        onFinish={advance}
-        onBack={retreat}
-        onConnectCalendar={handleConnectCalendar}
-      />
-    );
+  // Steps 2, 3, 4 get a shared progress bar + skip-to-end link.
+  // stepIndex: 2→1, 3→2, 4→3 (so users see 1/3, 2/3, 3/3).
+  const stepIndex = step - 1; // 1..3
+  const skipAll = () => setStep(4);
 
-  if (step === 4)
-    return (
-      <FirstWinScreen
-        data={data}
-        onBack={retreat}
-        onFinish={handleFinish}
-        isFinishing={saving}
-        onSaveActivity={handleSaveActivity}
-      />
-    );
+  return (
+    <>
+      <OnboardingProgressBar currentStep={stepIndex} totalSteps={3} onSkip={step === 3 ? skipAll : undefined} />
+      {step === 2 && (
+        <FamilySetup
+          data={data}
+          setData={setData}
+          onNext={advance}
+          onBack={retreat}
+          onSkip={advance}
+        />
+      )}
+      {step === 3 && (
+        <CalendarConnect
+          onFinish={advance}
+          onBack={retreat}
+          onConnectCalendar={handleConnectCalendar}
+        />
+      )}
+      {step === 4 && (
+        <FirstWinScreen
+          data={data}
+          onBack={retreat}
+          onFinish={handleFinish}
+          isFinishing={saving}
+          onSaveActivity={handleSaveActivity}
+        />
+      )}
+    </>
+  );
+}
 
-  // step === 5: Celebration screen before dashboard
-  return <CompletionScreen childNames={data.children.map((c) => c.name.trim()).filter(Boolean)} />;
+// ------------------------------------------------------------------
+// Progress bar + skip link, pinned to the top across onboarding steps
+// ------------------------------------------------------------------
+function OnboardingProgressBar({
+  currentStep,
+  totalSteps,
+  onSkip,
+}: {
+  currentStep: number;
+  totalSteps: number;
+  onSkip?: () => void;
+}) {
+  const pct = Math.max(0, Math.min(100, (currentStep / totalSteps) * 100));
+  return (
+    <div
+      dir="rtl"
+      className="fixed top-0 left-0 right-0 z-50 px-4 pt-3 pb-2 flex items-center justify-between gap-3"
+      style={{ background: "oklch(0.97 0.01 85 / 0.85)", backdropFilter: "blur(8px)" }}
+    >
+      <div className="flex-1">
+        <div
+          className="h-1.5 w-full rounded-full overflow-hidden"
+          style={{ background: "oklch(0.88 0.02 85)" }}
+        >
+          <div
+            className="h-full transition-all duration-500 rounded-full"
+            style={{ width: `${pct}%`, background: "oklch(0.55 0.14 140)" }}
+          />
+        </div>
+        <p className="text-[11px] mt-1 font-semibold" style={{ color: "oklch(0.45 0.03 255)" }}>
+          שלב {currentStep} מתוך {totalSteps}
+        </p>
+      </div>
+      {onSkip && (
+        <button
+          onClick={onSkip}
+          className="text-xs font-semibold px-3 py-1.5 rounded-full"
+          style={{ color: "oklch(0.45 0.03 255)" }}
+        >
+          דלג
+        </button>
+      )}
+    </div>
+  );
 }
 
 function CompletionScreen({ childNames }: { childNames: string[] }) {
