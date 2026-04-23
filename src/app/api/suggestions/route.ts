@@ -551,6 +551,30 @@ export async function GET(request: Request) {
     .limit(15);
   const recentTitles = (recentMoments ?? []).map((m) => m.title).filter(Boolean);
 
+  // Golden hour — most frequent hour-of-day among completed moments (last 90d)
+  const goldenCutoff = new Date();
+  goldenCutoff.setDate(goldenCutoff.getDate() - 90);
+  const { data: completedForHour } = await supabase
+    .from("saved_moments")
+    .select("scheduled_at")
+    .eq("user_id", user.id)
+    .eq("completed", true)
+    .gte("scheduled_at", goldenCutoff.toISOString())
+    .limit(200);
+  let goldenHour: number | null = null;
+  if (completedForHour && completedForHour.length >= 3) {
+    const counts = new Array<number>(24).fill(0);
+    for (const m of completedForHour) {
+      if (m.scheduled_at) counts[new Date(m.scheduled_at).getHours()]++;
+    }
+    let bestHour = 0;
+    let bestCount = 0;
+    for (let h = 0; h < 24; h++) {
+      if (counts[h] > bestCount) { bestCount = counts[h]; bestHour = h; }
+    }
+    if (bestCount >= 2) goldenHour = bestHour;
+  }
+
   // Try AI generation, fall back to templates
   let toInsert: Array<{
     user_id: string;
@@ -583,7 +607,7 @@ export async function GET(request: Request) {
       interests: c.interests ?? [],
     }));
 
-    const aiSuggestions = await generateAISuggestions(childProfiles, recentTitles, freeTimeSlots, calendarWindows);
+    const aiSuggestions = await generateAISuggestions(childProfiles, recentTitles, freeTimeSlots, calendarWindows, goldenHour);
 
     toInsert = aiSuggestions.map((s) => {
       const child = children[s.child_index] ?? children[0];

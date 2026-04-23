@@ -89,6 +89,7 @@ export async function generateAISuggestions(
   recentTitles: string[] = [],
   freeTimeSlots: string[] = [],        // manual slot keys from Settings
   calendarWindows: string[] = [],      // specific windows from Google Calendar e.g. "שלישי 17:00–19:30"
+  goldenHour: number | null = null,    // user's most-successful completion hour (0-23)
 ): Promise<GeneratedSuggestion[]> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not set");
@@ -110,10 +111,13 @@ export async function generateAISuggestions(
       : "";
 
   const scheduleNote = buildScheduleNote(calendarWindows, freeTimeSlots);
+  const goldenHourNote = goldenHour !== null
+    ? `\nשעת הזהב של המשפחה (הזמן בו הם הכי בהצלחה מבצעים פעילויות): ${String(goldenHour).padStart(2, "0")}:00 — העדף time_slot סביב השעה הזו כשהדבר אפשרי.\n`
+    : "";
 
   const userPrompt = `צור 6 הצעות פעילויות מגוונות עבור הילדים הבאים:
 
-${childrenDesc}${recentDesc}${scheduleNote}
+${childrenDesc}${recentDesc}${scheduleNote}${goldenHourNote}
 חשוב מאוד:
 - הפץ את ההצעות בין הילדים השונים (כל ילד מקבל ~3 הצעות)
 - התאם כל פעילות לתחומי העניין הספציפיים של הילד

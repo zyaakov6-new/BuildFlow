@@ -16,6 +16,7 @@ export type Database = {
         Row: {
           age_group: string | null
           avatar_color: string | null
+          avatar_emoji: string | null
           created_at: string | null
           id: string
           interests: string[] | null
@@ -25,6 +26,7 @@ export type Database = {
         Insert: {
           age_group?: string | null
           avatar_color?: string | null
+          avatar_emoji?: string | null
           created_at?: string | null
           id?: string
           interests?: string[] | null
@@ -34,6 +36,7 @@ export type Database = {
         Update: {
           age_group?: string | null
           avatar_color?: string | null
+          avatar_emoji?: string | null
           created_at?: string | null
           id?: string
           interests?: string[] | null
@@ -90,6 +93,8 @@ export type Database = {
           id: string
           notification_email: boolean
           notification_push: boolean
+          paywall_variant: number | null
+          streak_freeze_used_at: string | null
           stripe_customer_id: string | null
           subscription_period_end: string | null
           subscription_plan: string
@@ -105,6 +110,8 @@ export type Database = {
           id: string
           notification_email?: boolean
           notification_push?: boolean
+          paywall_variant?: number | null
+          streak_freeze_used_at?: string | null
           stripe_customer_id?: string | null
           subscription_period_end?: string | null
           subscription_plan?: string
@@ -120,6 +127,8 @@ export type Database = {
           id?: string
           notification_email?: boolean
           notification_push?: boolean
+          paywall_variant?: number | null
+          streak_freeze_used_at?: string | null
           stripe_customer_id?: string | null
           subscription_period_end?: string | null
           subscription_plan?: string
@@ -138,7 +147,9 @@ export type Database = {
           description: string | null
           duration_min: number | null
           id: string
+          last_push_sent_at: string | null
           notes: string | null
+          photo_url: string | null
           prep_min: number | null
           rating: number | null
           scheduled_at: string | null
@@ -156,7 +167,9 @@ export type Database = {
           description?: string | null
           duration_min?: number | null
           id?: string
+          last_push_sent_at?: string | null
           notes?: string | null
+          photo_url?: string | null
           prep_min?: number | null
           rating?: number | null
           scheduled_at?: string | null
@@ -174,7 +187,9 @@ export type Database = {
           description?: string | null
           duration_min?: number | null
           id?: string
+          last_push_sent_at?: string | null
           notes?: string | null
+          photo_url?: string | null
           prep_min?: number | null
           rating?: number | null
           scheduled_at?: string | null

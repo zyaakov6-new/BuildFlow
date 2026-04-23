@@ -66,7 +66,10 @@ interface ChildRecord {
   age_group: string;
   interests: string[];
   avatar_color: string | null;
+  avatar_emoji?: string | null;
 }
+
+const AVATAR_EMOJIS = ["🦁", "🦊", "🐻", "🐼", "🦖", "🐯", "🦄", "🧚‍♀️", "🧚‍♂️", "🦸‍♀️", "🦸‍♂️", "⭐", "🌟", "🎨", "⚽", "🚀", "🎸", "📚"];
 
 const HEBREW_MONTHS = [
   "ינואר","פברואר","מרץ","אפריל","מאי","יוני",
@@ -102,7 +105,7 @@ export default function ProfileSidebar({ open, onClose, onOpenSettings }: Profil
   const [childrenLoading, setChildrenLoading] = useState(false);
   const [addingChild, setAddingChild] = useState(false);
   const [editingChildId, setEditingChildId] = useState<string | null>(null);
-  const [childForm, setChildForm] = useState({ name: "", age_group: "6-8", interests: [] as string[] });
+  const [childForm, setChildForm] = useState({ name: "", age_group: "6-8", interests: [] as string[], avatar_emoji: "" as string });
   const [savingChild, setSavingChild] = useState(false);
   const [calendarConnected, setCalendarConnected] = useState<boolean | null>(null);
   const [upgradingPlan, setUpgradingPlan] = useState(false);
@@ -187,6 +190,7 @@ export default function ProfileSidebar({ open, onClose, onOpenSettings }: Profil
         age_group: childForm.age_group,
         interests: childForm.interests,
         avatar_color: color,
+        avatar_emoji: childForm.avatar_emoji || null,
       }).select().single();
 
       if (insertError) {
@@ -198,7 +202,7 @@ export default function ProfileSidebar({ open, onClose, onOpenSettings }: Profil
         setChildren((prev) => [...prev, newChild as ChildRecord]);
         setUserData((prev) => ({ ...prev, stats: { ...prev.stats, childrenCount: prev.stats.childrenCount + 1 } }));
       }
-      setChildForm({ name: "", age_group: "6-8", interests: [] });
+      setChildForm({ name: "", age_group: "6-8", interests: [], avatar_emoji: "" });
       setAddingChild(false);
     } catch (e) {
       console.error("Failed to add child:", e);
@@ -217,10 +221,11 @@ export default function ProfileSidebar({ open, onClose, onOpenSettings }: Profil
         name: childForm.name.trim(),
         age_group: childForm.age_group,
         interests: childForm.interests,
+        avatar_emoji: childForm.avatar_emoji || null,
       }).eq("id", id);
 
       setChildren((prev) => prev.map((c) =>
-        c.id === id ? { ...c, name: childForm.name.trim(), age_group: childForm.age_group, interests: childForm.interests } : c
+        c.id === id ? { ...c, name: childForm.name.trim(), age_group: childForm.age_group, interests: childForm.interests, avatar_emoji: childForm.avatar_emoji || null } : c
       ));
       setEditingChildId(null);
     } catch (e) {
@@ -244,7 +249,7 @@ export default function ProfileSidebar({ open, onClose, onOpenSettings }: Profil
   const openEditChild = (child: ChildRecord) => {
     setEditingChildId(child.id);
     setAddingChild(false);
-    setChildForm({ name: child.name, age_group: child.age_group, interests: child.interests });
+    setChildForm({ name: child.name, age_group: child.age_group, interests: child.interests, avatar_emoji: child.avatar_emoji ?? "" });
   };
 
   const toggleInterest = (interest: string) => {
@@ -680,7 +685,7 @@ export default function ProfileSidebar({ open, onClose, onOpenSettings }: Profil
                       </button>
                     ) : atLimit ? null : (
                       <button
-                        onClick={() => { setAddingChild(true); setEditingChildId(null); setChildForm({ name: "", age_group: "6-8", interests: [] }); }}
+                        onClick={() => { setAddingChild(true); setEditingChildId(null); setChildForm({ name: "", age_group: "6-8", interests: [], avatar_emoji: "" }); }}
                         className="flex items-center gap-1 text-xs font-bold rounded-lg px-2 py-1 transition-colors hover:bg-[oklch(0.93_0.04_140_/_0.2)]"
                         style={{ color: "oklch(0.52 0.14 140)" }}
                       >
@@ -725,7 +730,35 @@ export default function ProfileSidebar({ open, onClose, onOpenSettings }: Profil
                       >
                         {AGE_GROUPS.map((g) => <option key={g} value={g}>גיל {g}</option>)}
                       </select>
-                      <p className="text-xs font-bold text-right mb-1.5" style={{ color: "oklch(0.55 0.03 255)" }}>תחומי עניין</p>
+                      <p className="text-xs font-bold text-right mb-1.5" style={{ color: "oklch(0.55 0.03 255)" }}>אימוג׳י אווטאר (אופציונלי)</p>
+                  <div className="flex flex-wrap gap-1 flex-row-reverse mb-3">
+                    <button
+                      onClick={() => setChildForm((p) => ({ ...p, avatar_emoji: "" }))}
+                      className="w-8 h-8 rounded-lg text-xs font-bold border"
+                      style={{
+                        background: !childForm.avatar_emoji ? "oklch(0.65 0.14 140)" : "white",
+                        color: !childForm.avatar_emoji ? "white" : "oklch(0.5 0.03 255)",
+                        borderColor: !childForm.avatar_emoji ? "oklch(0.65 0.14 140)" : "oklch(0.88 0.02 85)",
+                      }}
+                      aria-label="ללא אימוג׳י"
+                    >
+                      Aa
+                    </button>
+                    {AVATAR_EMOJIS.map((e) => (
+                      <button
+                        key={e}
+                        onClick={() => setChildForm((p) => ({ ...p, avatar_emoji: e }))}
+                        className="w-8 h-8 rounded-lg text-lg border transition-all active:scale-90"
+                        style={{
+                          background: childForm.avatar_emoji === e ? "oklch(0.88 0.08 140 / 0.25)" : "white",
+                          borderColor: childForm.avatar_emoji === e ? "oklch(0.65 0.14 140)" : "oklch(0.90 0.02 85)",
+                        }}
+                      >
+                        {e}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs font-bold text-right mb-1.5" style={{ color: "oklch(0.55 0.03 255)" }}>תחומי עניין</p>
                       <div className="flex flex-wrap gap-1.5 flex-row-reverse mb-3">
                         {INTEREST_OPTIONS.map((interest) => (
                           <button
@@ -766,10 +799,10 @@ export default function ProfileSidebar({ open, onClose, onOpenSettings }: Profil
                         </p>
                       </div>
                       <div
-                        className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-black text-sm flex-shrink-0"
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center font-black flex-shrink-0 ${child.avatar_emoji ? "text-lg" : "text-sm text-white"}`}
                         style={{ background: child.avatar_color ?? "oklch(0.65 0.14 140)" }}
                       >
-                        {child.name[0]}
+                        {child.avatar_emoji ?? child.name[0]}
                       </div>
                     </div>
                   )}
@@ -797,6 +830,34 @@ export default function ProfileSidebar({ open, onClose, onOpenSettings }: Profil
                   >
                     {AGE_GROUPS.map((g) => <option key={g} value={g}>גיל {g}</option>)}
                   </select>
+                  <p className="text-xs font-bold text-right mb-1.5" style={{ color: "oklch(0.55 0.03 255)" }}>אימוג׳י אווטאר (אופציונלי)</p>
+                  <div className="flex flex-wrap gap-1 flex-row-reverse mb-3">
+                    <button
+                      onClick={() => setChildForm((p) => ({ ...p, avatar_emoji: "" }))}
+                      className="w-8 h-8 rounded-lg text-xs font-bold border"
+                      style={{
+                        background: !childForm.avatar_emoji ? "oklch(0.65 0.14 140)" : "white",
+                        color: !childForm.avatar_emoji ? "white" : "oklch(0.5 0.03 255)",
+                        borderColor: !childForm.avatar_emoji ? "oklch(0.65 0.14 140)" : "oklch(0.88 0.02 85)",
+                      }}
+                      aria-label="ללא אימוג׳י"
+                    >
+                      Aa
+                    </button>
+                    {AVATAR_EMOJIS.map((e) => (
+                      <button
+                        key={e}
+                        onClick={() => setChildForm((p) => ({ ...p, avatar_emoji: e }))}
+                        className="w-8 h-8 rounded-lg text-lg border transition-all active:scale-90"
+                        style={{
+                          background: childForm.avatar_emoji === e ? "oklch(0.88 0.08 140 / 0.25)" : "white",
+                          borderColor: childForm.avatar_emoji === e ? "oklch(0.65 0.14 140)" : "oklch(0.90 0.02 85)",
+                        }}
+                      >
+                        {e}
+                      </button>
+                    ))}
+                  </div>
                   <p className="text-xs font-bold text-right mb-1.5" style={{ color: "oklch(0.55 0.03 255)" }}>תחומי עניין</p>
                   <div className="flex flex-wrap gap-1.5 flex-row-reverse mb-3">
                     {INTEREST_OPTIONS.map((interest) => (

@@ -36,7 +36,7 @@ export default async function InsightsPage() {
   const [{ data: children }, { data: moments }] = await Promise.all([
     supabase
       .from("children")
-      .select("id, name, avatar_color")
+      .select("id, name, avatar_color, avatar_emoji")
       .eq("user_id", user.id)
       .order("created_at", { ascending: true }),
     supabase
@@ -46,7 +46,7 @@ export default async function InsightsPage() {
       .eq("completed", true),
   ]);
 
-  const kids = (children ?? []) as Array<{ id: string; name: string; avatar_color: string | null }>;
+  const kids = (children ?? []) as Array<{ id: string; name: string; avatar_color: string | null; avatar_emoji: string | null }>;
   const all = (moments ?? []) as Array<{
     id: string;
     child_id: string | null;
@@ -62,16 +62,27 @@ export default async function InsightsPage() {
     const hers = all.filter((m) => m.child_id === k.id);
     const loved = hers.filter((m) => (m.rating ?? 0) >= 3);
     const catCounts = new Map<string, number>();
+    const hourCounts = new Array<number>(24).fill(0);
     for (const m of hers) {
       if (m.category) catCounts.set(m.category, (catCounts.get(m.category) ?? 0) + 1);
+      const d = m.scheduled_at ?? m.created_at;
+      if (d) hourCounts[new Date(d).getHours()]++;
     }
     const topCat = Array.from(catCounts.entries()).sort((a, b) => b[1] - a[1])[0];
+    let bestHour: number | null = null;
+    let bestHourCount = 0;
+    for (let h = 0; h < 24; h++) {
+      if (hourCounts[h] > bestHourCount) { bestHourCount = hourCounts[h]; bestHour = h; }
+    }
+    const lovedRate = hers.length > 0 ? Math.round((loved.length / hers.length) * 100) : 0;
     return {
       child: k,
       total: hers.length,
       lovedCount: loved.length,
+      lovedRate,
       topCategory: topCat?.[0] ?? null,
       topCategoryCount: topCat?.[1] ?? 0,
+      bestHour: bestHourCount >= 2 ? bestHour : null,
     };
   });
 
@@ -183,10 +194,10 @@ export default async function InsightsPage() {
           >
             <div className="flex items-center gap-3 mb-3">
               <div
-                className="w-11 h-11 rounded-2xl flex items-center justify-center text-white font-black text-lg"
+                className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black ${p.child.avatar_emoji ? "text-2xl" : "text-lg text-white"}`}
                 style={{ background: p.child.avatar_color ?? "oklch(0.65 0.14 140)" }}
               >
-                {p.child.name[0] ?? "?"}
+                {p.child.avatar_emoji ?? p.child.name[0] ?? "?"}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-black text-lg leading-tight" style={{ color: "oklch(0.2 0.03 255)" }}>
@@ -200,7 +211,7 @@ export default async function InsightsPage() {
 
             {p.topCategory && (
               <div
-                className="rounded-2xl p-3.5 text-sm leading-relaxed font-semibold"
+                className="rounded-2xl p-3.5 text-sm leading-relaxed font-semibold mb-2"
                 style={{
                   background: "oklch(0.88 0.08 140 / 0.18)",
                   color: "oklch(0.35 0.1 140)",
@@ -211,6 +222,27 @@ export default async function InsightsPage() {
                 {p.topCategoryCount >= 3 && ` — ${p.topCategoryCount} רגעים במיוחד`}
               </div>
             )}
+
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              {p.bestHour !== null && (
+                <div
+                  className="rounded-2xl p-3 text-xs font-semibold text-center"
+                  style={{ background: "oklch(0.92 0.06 60 / 0.35)", color: "oklch(0.4 0.15 42)" }}
+                >
+                  שעת הזהב
+                  <div className="text-lg font-black mt-0.5">{String(p.bestHour).padStart(2, "0")}:00</div>
+                </div>
+              )}
+              {p.total >= 3 && (
+                <div
+                  className="rounded-2xl p-3 text-xs font-semibold text-center"
+                  style={{ background: "oklch(0.92 0.05 25 / 0.35)", color: "oklch(0.4 0.15 25)" }}
+                >
+                  אחוז מוצלחים
+                  <div className="text-lg font-black mt-0.5">{p.lovedRate}%</div>
+                </div>
+              )}
+            </div>
 
             <Link
               href={`/child/${p.child.id}`}

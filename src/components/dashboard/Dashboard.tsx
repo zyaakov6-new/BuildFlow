@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   Home, Calendar, Lightbulb, User, BarChart2,
   ChevronLeft, Clock, Blocks, BookOpen,
-  CheckCircle2, TrendingUp, Sparkles, X, Pencil,
+  CheckCircle2, TrendingUp, Sparkles, X, Pencil, Image as ImageIcon,
 } from "lucide-react";
 import ProfileSidebar from "./ProfileSidebar";
 import FindActivityScreen from "./FindActivityScreen";
@@ -20,6 +20,8 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { Flame } from "lucide-react";
 import { toast } from "sonner";
 import { haptic } from "@/lib/haptic";
+import { celebrateOnce } from "@/lib/celebrate";
+import Link from "next/link";
 
 // ---- Types ----
 type Tab = "home" | "suggestions" | "calendar" | "reports" | "profile";
@@ -272,7 +274,7 @@ const NAV_TABS: { id: Tab; label: string; Icon: React.ElementType; primary?: boo
 ];
 
 // ---- Mobile Bottom Nav ----
-function BottomNav({ active, setActive }: { active: Tab; setActive: (t: Tab) => void }) {
+function BottomNav({ active, setActive, pulsePrimary = false }: { active: Tab; setActive: (t: Tab) => void; pulsePrimary?: boolean }) {
   return (
     <div
       className="md:hidden fixed bottom-0 right-0 left-0 z-20"
@@ -289,11 +291,11 @@ function BottomNav({ active, setActive }: { active: Tab; setActive: (t: Tab) => 
             return (
               <button
                 key={id}
-                onClick={() => setActive(id)}
+                onClick={() => { haptic("tap"); setActive(id); }}
                 className="flex flex-col items-center gap-0.5 py-2 px-2 min-w-0 flex-1 transition-all active:scale-95"
               >
                 <div
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all -mt-3"
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all -mt-3 ${pulsePrimary && !isActive ? "bf-pulse" : ""}`}
                   style={{
                     background: isActive
                       ? "linear-gradient(135deg, oklch(0.58 0.16 148), oklch(0.52 0.18 148))"
@@ -312,7 +314,7 @@ function BottomNav({ active, setActive }: { active: Tab; setActive: (t: Tab) => 
           return (
             <button
               key={id}
-              onClick={() => setActive(id)}
+              onClick={() => { haptic("tap"); setActive(id); }}
               className="flex flex-col items-center gap-0.5 py-3 px-2 min-w-0 flex-1 transition-all active:scale-95"
             >
               <div
@@ -424,6 +426,7 @@ export default function Dashboard() {
   const [calendarConnectLoading, setCalendarConnectLoading] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [streak, setStreak] = useState(0);
+  const [streakFreezeApplied, setStreakFreezeApplied] = useState(false);
   const [reflection, setReflection] = useState<{ id: string; title: string } | null>(null);
 
   // ---- Load real data on mount ----
@@ -456,7 +459,7 @@ export default function Dashboard() {
 
         // 3. Children (shared by suggestions + upcoming)
         const [{ data: children }, { data: onb }] = await Promise.all([
-          supabase.from("children").select("id, name, age_group, avatar_color").eq("user_id", user.id),
+          supabase.from("children").select("id, name, age_group, avatar_color, avatar_emoji").eq("user_id", user.id),
           supabase.from("onboarding").select("completed").eq("user_id", user.id).maybeSingle(),
         ]);
 
@@ -496,18 +499,49 @@ export default function Dashboard() {
             .filter((d): d is Date => d !== null)
             .map((d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`)
         );
+        // Read streak-freeze status (1 freeze per 7 days)
+        const { data: profileFreeze } = await supabase
+          .from("profiles")
+          .select("streak_freeze_used_at")
+          .eq("id", user.id)
+          .maybeSingle();
+        const freezeUsedAt = profileFreeze?.streak_freeze_used_at ? new Date(profileFreeze.streak_freeze_used_at) : null;
+        const freezeAvailable = !freezeUsedAt || (Date.now() - freezeUsedAt.getTime()) >= 7 * 24 * 60 * 60 * 1000;
+
         let s = 0;
+        let freezeConsumed = false;
         const cursor = new Date();
         cursor.setHours(0, 0, 0, 0);
+        const hasKey = () => dayKeys.has(`${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`);
         // Allow streak to include "yesterday" if today has no entry yet
-        if (!dayKeys.has(`${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`)) {
+        if (!hasKey()) {
           cursor.setDate(cursor.getDate() - 1);
         }
-        while (dayKeys.has(`${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`)) {
-          s++;
-          cursor.setDate(cursor.getDate() - 1);
+        while (true) {
+          if (hasKey()) {
+            s++;
+            cursor.setDate(cursor.getDate() - 1);
+            continue;
+          }
+          // Streak-freeze: allow a single 1-day gap if freeze is available and not consumed
+          if (freezeAvailable && !freezeConsumed && s > 0) {
+            freezeConsumed = true;
+            cursor.setDate(cursor.getDate() - 1);
+            if (hasKey()) {
+              continue;
+            }
+          }
+          break;
         }
         setStreak(s);
+        setStreakFreezeApplied(freezeConsumed);
+        if (freezeConsumed && freezeAvailable) {
+          // Persist freeze use so it's not re-applied within 7 days
+          await supabase
+            .from("profiles")
+            .update({ streak_freeze_used_at: new Date().toISOString() })
+            .eq("id", user.id);
+        }
 
         // 4. Weekly score
         const { data: scores } = await supabase
@@ -549,7 +583,7 @@ export default function Dashboard() {
             id: m.id,
             title: m.title,
             childName,
-            childInitial: childName[0] ?? "?",
+            childInitial: child?.avatar_emoji ?? childName[0] ?? "?",
             childColor: child?.avatar_color ?? "oklch(0.72 0.18 42)",
             time: timeStr,
             accentColor: "oklch(0.55 0.14 140)",
@@ -576,7 +610,7 @@ export default function Dashboard() {
               id: s.id,
               title: s.title,
               child: childName,
-              childInitial: childName[0] ?? "?",
+              childInitial: child?.avatar_emoji ?? childName[0] ?? "?",
               childColor: child?.avatar_color ?? "oklch(0.72 0.18 42)",
               childAge: 0,
               timeSlot: `${s.day_label ?? ""} ${s.time_slot ?? ""}`.trim(),
@@ -612,6 +646,12 @@ export default function Dashboard() {
   const handleBlock = async (id: string) => {
     // Optimistic UI update
     setSuggestions((prev) => prev.map((s) => (s.id === id ? { ...s, blocked: true } : s)));
+    haptic("tap");
+    // Activation moment — celebrate the very first saved moment.
+    if (momentsCount === 0) {
+      celebrateOnce("first_moment", "big");
+      toast.success("הרגע הראשון שלך 🎉");
+    }
 
     try {
       const supabase = createClient();
@@ -753,7 +793,8 @@ export default function Dashboard() {
         onClose={() => setSidebarOpen(false)}
         onOpenSettings={() => setActiveTab("profile")}
       />
-      <PWAInstallBanner />
+      {/* Gate the install banner until user has engaged — fewer drive-by dismissals. */}
+      <PWAInstallBanner enabled={!loadingData && momentsCount >= 2} />
 
       {/* ---- Top bar ---- */}
       <div
@@ -827,7 +868,7 @@ export default function Dashboard() {
         <div className="max-w-6xl mx-auto px-4 md:px-8 py-6">
 
           {activeTab === "home" && loadingData && (
-            <div className="flex flex-col gap-4 animate-pulse">
+            <div className="flex flex-col gap-4 animate-pulse bf-stagger">
               {/* Greeting lines */}
               <div className="h-7 w-52 rounded-xl ms-auto" style={{ background: "oklch(0.86 0.02 85)" }} />
               <div className="h-4 w-72 rounded-lg ms-auto" style={{ background: "oklch(0.89 0.02 85)" }} />
@@ -859,6 +900,9 @@ export default function Dashboard() {
                 <span className="text-sm font-black" style={{ color: "oklch(0.5 0.18 42)" }}>
                   {streak} {streak === 2 ? "ימים" : streak <= 10 ? "ימים" : "יום"}
                 </span>
+                {streakFreezeApplied && (
+                  <span className="text-base" title="הוקפא יום אחד השבוע">🛡️</span>
+                )}
               </div>
             )}
             <div className="text-right flex-1">
@@ -965,6 +1009,46 @@ export default function Dashboard() {
                   </div>
                 </div>
               )}
+
+              {/* Quick nav links — Insights + Memories */}
+              <div className="grid grid-cols-2 gap-3">
+                <Link
+                  href="/insights"
+                  onClick={() => haptic("tap")}
+                  className="rounded-2xl p-3 border flex items-center gap-2.5 text-right transition-all active:scale-[0.98]"
+                  style={{ background: "white", borderColor: "oklch(0.93 0.02 85)" }}
+                >
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "oklch(0.88 0.08 255 / 0.2)" }}
+                  >
+                    <TrendingUp className="w-4 h-4" style={{ color: "oklch(0.52 0.14 255)" }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black leading-tight" style={{ color: "oklch(0.2 0.03 255)" }}>תובנות</p>
+                    <p className="text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>מה עובד הכי טוב</p>
+                  </div>
+                  <ChevronLeft className="w-4 h-4 flex-shrink-0" style={{ color: "oklch(0.7 0.03 255)" }} />
+                </Link>
+                <Link
+                  href="/memories"
+                  onClick={() => haptic("tap")}
+                  className="rounded-2xl p-3 border flex items-center gap-2.5 text-right transition-all active:scale-[0.98]"
+                  style={{ background: "white", borderColor: "oklch(0.93 0.02 85)" }}
+                >
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "oklch(0.88 0.06 42 / 0.2)" }}
+                  >
+                    <ImageIcon className="w-4 h-4" style={{ color: "oklch(0.58 0.16 42)" }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black leading-tight" style={{ color: "oklch(0.2 0.03 255)" }}>אלבום</p>
+                    <p className="text-xs" style={{ color: "oklch(0.6 0.03 255)" }}>תמונות מהרגעים</p>
+                  </div>
+                  <ChevronLeft className="w-4 h-4 flex-shrink-0" style={{ color: "oklch(0.7 0.03 255)" }} />
+                </Link>
+              </div>
 
               {/* Quick stats */}
               <div className="grid grid-cols-3 gap-3">
@@ -1148,7 +1232,7 @@ export default function Dashboard() {
 
 
       {/* ---- Mobile bottom nav ---- */}
-      <BottomNav active={activeTab} setActive={handleTabClick} />
+      <BottomNav active={activeTab} setActive={handleTabClick} pulsePrimary={isZeroActivity} />
     </div>
   );
 }

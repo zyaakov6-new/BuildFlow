@@ -9,7 +9,7 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-export default function PWAInstallBanner() {
+export default function PWAInstallBanner({ enabled = true }: { enabled?: boolean } = {}) {
   const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -58,6 +58,8 @@ export default function PWAInstallBanner() {
     setDismissed(true);
     setIsIOSDismissed(true);
   };
+
+  if (!enabled) return null;
 
   // Android/Chrome install banner
   if (!dismissed && prompt) {
