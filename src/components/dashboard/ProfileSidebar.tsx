@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   X, LogOut, Crown, Sparkles, User, Mail,
   ChevronLeft, Calendar, CheckCircle2, Clock, ShieldCheck,
-  Plus, Trash2, Baby, Pencil,
+  Plus, Trash2, Baby, Pencil, Settings as SettingsIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ import { getPaywallVariant, PAYWALL_COPY, type PaywallVariant } from "@/lib/payw
 interface ProfileSidebarProps {
   open: boolean;
   onClose: () => void;
+  onOpenSettings?: () => void;
 }
 
 interface UserData {
@@ -88,7 +89,7 @@ const DEFAULT_DATA: UserData = {
   stats: { totalMoments: 0, weeksActive: 0, childrenCount: 0 },
 };
 
-export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
+export default function ProfileSidebar({ open, onClose, onOpenSettings }: ProfileSidebarProps) {
   const router = useRouter();
   const [userData, setUserData] = useState<UserData>(DEFAULT_DATA);
   const [sidebarLoading, setSidebarLoading] = useState(false);
@@ -872,11 +873,25 @@ export default function ProfileSidebar({ open, onClose }: ProfileSidebarProps) {
           </>)}
         </div>
 
-        {/* Logout button */}
+        {/* Settings + Logout buttons */}
         <div
-          className="px-4 py-4 border-t"
+          className="px-4 py-4 border-t flex flex-col gap-2"
           style={{ borderColor: "oklch(0.93 0.02 85)", background: "white" }}
         >
+          {onOpenSettings && (
+            <button
+              onClick={() => { onOpenSettings(); onClose(); }}
+              className="w-full flex items-center justify-center gap-2.5 rounded-2xl py-3 text-sm font-bold transition-all active:scale-[0.98] hover:opacity-90"
+              style={{
+                background: "oklch(0.96 0.01 85)",
+                border: "1.5px solid oklch(0.90 0.02 85)",
+                color: "oklch(0.35 0.03 255)",
+              }}
+            >
+              <SettingsIcon className="w-4 h-4" />
+              הגדרות והתראות
+            </button>
+          )}
           <button
             onClick={handleLogout}
             className="w-full flex items-center justify-center gap-2.5 rounded-2xl py-3.5 text-sm font-bold transition-all active:scale-[0.98] hover:opacity-90"

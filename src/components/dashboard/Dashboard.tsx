@@ -748,7 +748,11 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen pb-20 md:pb-0" style={{ background: "oklch(0.97 0.01 85)" }}>
       {/* Profile sidebar */}
-      <ProfileSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <ProfileSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onOpenSettings={() => setActiveTab("profile")}
+      />
       <PWAInstallBanner />
 
       {/* ---- Top bar ---- */}
