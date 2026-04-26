@@ -4,11 +4,10 @@
 //   - Navigation (HTML): network-first with cached fallback
 //   - API calls (/api/*): never cached (always network)
 
-const CACHE = 'bondflow-v2';
+const CACHE = 'bondflow-v3';
 const OFFLINE_URL = '/';
 const STATIC_ASSETS = [
   '/',
-  '/dashboard',
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
@@ -44,27 +43,32 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Navigation requests: network-first with offline fallback
+  // IMPORTANT: only cache 2xx responses so we never serve a stuck 404.
   if (req.mode === 'navigate') {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((cache) => cache.put(req, copy)).catch(() => {});
+          if (res && res.ok && res.status === 200 && res.type === 'basic') {
+            const copy = res.clone();
+            caches.open(CACHE).then((cache) => cache.put(req, copy)).catch(() => {});
+          }
           return res;
         })
-        .catch(async () => (await caches.match(req)) || caches.match(OFFLINE_URL))
+        .catch(async () => (await caches.match(req)) || (await caches.match(OFFLINE_URL)) || Response.redirect('/', 302))
     );
     return;
   }
 
-  // Static assets: stale-while-revalidate
+  // Static assets: stale-while-revalidate (only cache OK responses)
   if (/\.(?:js|css|woff2?|ttf|png|jpg|jpeg|svg|ico|webp)$/.test(url.pathname)) {
     event.respondWith(
       caches.match(req).then((cached) => {
         const fetchPromise = fetch(req)
           .then((res) => {
-            const copy = res.clone();
-            caches.open(CACHE).then((cache) => cache.put(req, copy)).catch(() => {});
+            if (res && res.ok && res.status === 200) {
+              const copy = res.clone();
+              caches.open(CACHE).then((cache) => cache.put(req, copy)).catch(() => {});
+            }
             return res;
           })
           .catch(() => cached);
